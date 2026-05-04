@@ -6,9 +6,10 @@
     <meta name="theme-color" content="#0a0a0a">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="description" content="Stock CEO Ultimate - ระบบจัดการสต็อกรถมือสองอัจฉริยะ ครบวงจร พร้อมระบบสมาชิก">
+    <meta name="description" content="Stock CEO Ultimate - ระบบจัดการสต็อกรถมือสองอัจฉริยะ ครบวงจร">
     <title>Stock CEO Ultimate</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚗</text></svg>">
+    <link rel="manifest" href="data:application/json,{'name':'Stock%20CEO','short_name':'StockCEO','start_url':'.','display':'standalone','background_color':'%230a0a0a','theme_color':'%23c9a84c'}">
     
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -28,10 +29,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Thai:wght@300;400;500;600;700;800&family=Playfair+Display:wght@400;700;900&display=swap" rel="stylesheet">
     
     <style>
+        /* ========== CSS VARIABLES ========== */
         :root {
             --gold: #c9a84c; --gold-light: #f0d080; --gold-dark: #a08020;
             --bg-dark: #0a0a0a; --bg-card: #111111; --bg-input: #1a1a1a;
-            --border: #2a2a2a; --text-primary: #ffffff; --text-secondary: #888888;
+            --border: #2a2a2a; --text: #ffffff; --text-secondary: #888888;
             --red: #e05555; --green: #5ab87a; --blue: #5599ee; --orange: #ee9955;
             --purple: #aa77ee; --shadow: 0 20px 60px rgba(0,0,0,.7);
             --radius: 12px; --transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
@@ -39,13 +41,19 @@
         * { margin: 0; padding: 0; box-sizing: border-box; }
         html { scroll-behavior: smooth; font-size: 14px; }
         body {
-            background: var(--bg-dark); color: var(--text-primary);
+            background: var(--bg-dark); color: var(--text);
             font-family: 'Noto Sans Thai', system-ui, sans-serif;
             min-height: 100vh; overflow-x: hidden; line-height: 1.6;
             transition: background 0.3s, color 0.3s;
         }
         
-        /* TOPBAR */
+        /* ========== SCROLLBAR ========== */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: var(--bg-dark); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--gold); }
+        
+        /* ========== TOPBAR ========== */
         .topbar {
             position: sticky; top: 0; z-index: 1000;
             display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
@@ -56,234 +64,487 @@
             font-family: 'Playfair Display', serif; font-size: clamp(18px, 2vw, 22px);
             font-weight: 900; background: linear-gradient(135deg, var(--gold-light), var(--gold));
             -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-            cursor: pointer; white-space: nowrap;
+            cursor: pointer; white-space: nowrap; user-select: none;
         }
+        .topbar-status {
+            display: flex; align-items: center; gap: 4px;
+            font-size: 9px; color: var(--text-secondary);
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 4px; padding: 2px 8px;
+        }
+        .status-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); }
+        .status-dot.offline { background: var(--text-secondary); }
         .spacer { flex: 1; }
         
-        /* BUTTONS */
+        /* ========== BUTTONS ========== */
         .btn {
             display: inline-flex; align-items: center; gap: 6px;
             padding: 8px 14px; border-radius: 8px; border: 1px solid transparent;
             cursor: pointer; font-size: 12px; font-weight: 600; font-family: inherit;
             transition: var(--transition); white-space: nowrap; text-decoration: none;
+            user-select: none;
         }
+        .btn:hover { transform: translateY(-1px); }
+        .btn:active { transform: scale(0.97); }
         .btn-primary { background: var(--gold); color: #000; border-color: var(--gold); }
-        .btn-primary:hover { background: var(--gold-light); transform: translateY(-1px); }
+        .btn-primary:hover { background: var(--gold-light); }
         .btn-outline { background: transparent; border-color: var(--border); color: var(--text-secondary); }
         .btn-outline:hover { border-color: var(--gold); color: var(--gold); }
         .btn-danger { background: rgba(224,85,85,0.1); border-color: rgba(224,85,85,0.2); color: var(--red); }
         .btn-success { background: rgba(90,184,122,0.1); border-color: rgba(90,184,122,0.2); color: var(--green); }
+        .btn-blue { background: rgba(85,153,238,0.1); border-color: rgba(85,153,238,0.2); color: var(--blue); }
         .btn-sm { padding: 4px 8px; font-size: 10px; }
+        .btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; pointer-events: none; }
         
-        /* STATS */
+        /* ========== BREADCRUMB ========== */
+        .breadcrumb {
+            display: flex; align-items: center; gap: 6px;
+            padding: 8px 16px; font-size: 11px; color: var(--text-secondary);
+            border-bottom: 1px solid var(--border); background: var(--bg-card);
+            flex-wrap: wrap;
+        }
+        .breadcrumb span { color: var(--gold); cursor: pointer; }
+        .breadcrumb span:hover { text-decoration: underline; }
+        
+        /* ========== STATS ========== */
         .stats-bar {
-            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-            gap: 8px; padding: 12px 16px; border-bottom: 1px solid var(--border);
-            background: var(--bg-card);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 6px; padding: 10px 16px;
+            border-bottom: 1px solid var(--border); background: var(--bg-card);
         }
         .stat-card {
             background: var(--bg-input); border: 1px solid var(--border);
-            border-radius: 8px; padding: 12px; cursor: pointer;
+            border-radius: 8px; padding: 10px 8px; cursor: pointer;
             transition: var(--transition); text-align: center;
+            min-width: 80px;
         }
         .stat-card:hover { border-color: var(--gold); transform: translateY(-2px); }
-        .stat-value { font-family: 'Playfair Display', serif; font-size: 24px; font-weight: 700; }
-        .stat-label { font-size: 10px; color: var(--text-secondary); margin-top: 4px; }
+        .stat-card:active { transform: scale(0.97); }
+        .stat-value { font-family: 'Playfair Display', serif; font-size: clamp(16px, 2vw, 22px); font-weight: 700; }
+        .stat-label { font-size: 9px; color: var(--text-secondary); margin-top: 2px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-sub { font-size: 8px; color: var(--text-secondary); opacity: 0.7; }
         
-        /* NAV */
+        /* ========== NAV TABS ========== */
         .nav-tabs {
-            display: flex; gap: 2px; padding: 8px 16px 0;
+            display: flex; gap: 2px; padding: 6px 16px 0;
             border-bottom: 1px solid var(--border); background: var(--bg-dark);
-            overflow-x: auto;
+            overflow-x: auto; -webkit-overflow-scrolling: touch;
         }
         .nav-tab {
-            padding: 10px 20px; font-size: 13px; font-weight: 600;
+            padding: 10px 16px; font-size: 12px; font-weight: 600;
             color: var(--text-secondary); cursor: pointer;
             border-bottom: 3px solid transparent; transition: var(--transition);
-            white-space: nowrap;
+            white-space: nowrap; user-select: none;
         }
-        .nav-tab:hover { color: var(--text-primary); }
+        .nav-tab:hover { color: var(--text); }
         .nav-tab.active { color: var(--gold); border-bottom-color: var(--gold); background: rgba(201,168,76,0.05); }
+        .nav-tab .badge {
+            display: inline-block; background: var(--gold); color: #000;
+            padding: 1px 6px; border-radius: 10px; font-size: 9px; margin-left: 4px;
+        }
         
-        /* GRID */
-        .car-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; padding: 16px; }
+        /* ========== CAR GRID ========== */
+        .car-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 14px; padding: 14px;
+        }
         .car-card {
             background: var(--bg-card); border: 1px solid var(--border);
             border-radius: var(--radius); overflow: hidden;
             transition: var(--transition); position: relative;
-            animation: fadeIn 0.3s ease;
+            animation: fadeInUp 0.3s ease both; display: flex; flex-direction: column;
         }
-        .car-card:hover { transform: translateY(-4px); box-shadow: var(--shadow); border-color: rgba(201,168,76,0.3); }
+        .car-card:hover { transform: translateY(-3px); box-shadow: var(--shadow); border-color: rgba(201,168,76,0.3); }
         .car-card.aging-60 { border-color: var(--orange); }
-        .car-card.aging-90 { border-color: var(--red); background: rgba(224,85,85,0.05); }
+        .car-card.aging-90 { border-color: var(--red); background: rgba(224,85,85,0.03); }
         .car-card.compare-selected { border-color: var(--gold); box-shadow: 0 0 20px rgba(201,168,76,0.2); }
-        .car-card.hot-deal { border-color: var(--red); }
-        .car-card.recommended { border-color: var(--blue); }
-        .car-card.price-drop { border-color: var(--green); }
+        .car-card.tag-hot { border-left: 3px solid var(--red); }
+        .car-card.tag-recommended { border-left: 3px solid var(--blue); }
+        .car-card.tag-pricedrop { border-left: 3px solid var(--green); }
         
-        .car-image-wrap { position: relative; height: 200px; background: #0d0d0d; overflow: hidden; cursor: pointer; }
-        .car-image { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s; }
+        @keyframes fadeInUp { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        
+        .car-image-wrap {
+            position: relative; height: 200px; background: #0d0d0d;
+            overflow: hidden; cursor: pointer; flex-shrink: 0;
+        }
+        .car-image {
+            width: 100%; height: 100%; object-fit: cover;
+            transition: transform 0.4s;
+        }
         .car-card:hover .car-image { transform: scale(1.05); }
+        .car-image-overlay {
+            position: absolute; inset: 0; background: rgba(0,0,0,0.4);
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; transition: opacity 0.2s;
+        }
+        .car-image-wrap:hover .car-image-overlay { opacity: 1; }
+        .car-image-overlay span {
+            background: rgba(0,0,0,0.7); color: #fff; padding: 6px 12px;
+            border-radius: 6px; font-size: 11px; font-weight: 600;
+        }
         
-        .car-badge {
-            position: absolute; top: 10px; left: 10px;
-            width: 28px; height: 28px; border-radius: 50%;
+        .car-badge-num {
+            position: absolute; top: 8px; left: 8px;
+            width: 26px; height: 26px; border-radius: 50%;
             background: rgba(0,0,0,0.7); border: 1px solid var(--gold);
             color: var(--gold); font-size: 10px; font-weight: 700;
             display: flex; align-items: center; justify-content: center;
+            z-index: 2;
         }
-        .status-badge {
-            position: absolute; bottom: 10px; left: 10px;
-            font-size: 9px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
-        }
-        .status-show { background: rgba(90,184,122,0.8); color: #fff; }
-        .status-sold { background: rgba(224,85,85,0.8); color: #fff; }
-        .status-hold { background: rgba(201,168,76,0.8); color: #000; }
-        
-        .tag-badge {
-            position: absolute; top: 10px; right: 10px;
+        .car-badge-status {
+            position: absolute; bottom: 8px; left: 8px;
             font-size: 8px; font-weight: 700; padding: 3px 8px; border-radius: 4px;
-            text-transform: uppercase;
+            z-index: 2;
+        }
+        .status-show { background: rgba(90,184,122,0.85); color: #fff; }
+        .status-sold { background: rgba(224,85,85,0.85); color: #fff; }
+        .status-hold { background: rgba(201,168,76,0.85); color: #000; }
+        
+        .car-badge-tag {
+            position: absolute; top: 8px; right: 8px;
+            font-size: 7px; font-weight: 700; padding: 2px 6px; border-radius: 3px;
+            text-transform: uppercase; letter-spacing: 0.5px; z-index: 2;
         }
         .tag-hot { background: var(--red); color: #fff; }
         .tag-recommended { background: var(--blue); color: #fff; }
         .tag-pricedrop { background: var(--green); color: #fff; }
+        .tag-360 { background: var(--gold); color: #000; }
         
-        .car-body { padding: 14px; }
-        .car-brand { font-size: 9px; text-transform: uppercase; letter-spacing: 1px; color: var(--gold); font-weight: 700; }
-        .car-name { font-family: 'Playfair Display', serif; font-size: 18px; font-weight: 700; margin: 4px 0; }
-        .car-info { display: flex; gap: 8px; flex-wrap: wrap; margin: 8px 0; }
-        .car-info span { background: var(--bg-input); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; }
-        .car-price { font-family: 'Playfair Display', serif; font-size: 20px; font-weight: 700; color: var(--gold-light); }
-        .car-price small { font-size: 12px; color: var(--text-secondary); }
-        .car-actions { display: flex; gap: 4px; margin-top: 12px; flex-wrap: wrap; }
+        .car-body { padding: 12px 14px 14px; display: flex; flex-direction: column; gap: 8px; flex: 1; }
+        .car-brand {
+            font-size: 9px; text-transform: uppercase; letter-spacing: 1.5px;
+            color: var(--gold); font-weight: 700;
+        }
+        .car-name {
+            font-family: 'Playfair Display', serif; font-size: 18px;
+            font-weight: 700; line-height: 1.2;
+        }
+        .car-meta {
+            display: flex; gap: 6px; flex-wrap: wrap;
+        }
+        .car-meta span {
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 4px; padding: 2px 8px; font-size: 10px;
+            display: flex; align-items: center; gap: 3px;
+        }
+        .car-price-section {
+            margin-top: auto; padding-top: 8px;
+            border-top: 1px solid var(--border);
+            display: flex; align-items: flex-end; justify-content: space-between;
+            flex-wrap: wrap; gap: 8px;
+        }
+        .car-price {
+            font-family: 'Playfair Display', serif; font-size: 22px;
+            font-weight: 700; color: var(--gold-light); line-height: 1;
+        }
+        .car-price small { font-size: 12px; color: var(--text-secondary); font-weight: 400; }
+        .car-price-sp { font-size: 10px; color: var(--text-secondary); text-decoration: line-through; }
+        
+        .car-cost-info {
+            font-size: 9px; color: var(--text-secondary);
+            background: var(--bg-input); border-radius: 4px; padding: 4px 8px;
+        }
+        .car-profit { color: var(--green); }
+        .car-loss { color: var(--red); }
+        
+        .car-actions {
+            display: flex; gap: 4px; flex-wrap: wrap;
+            opacity: 0.6; transition: opacity 0.2s;
+        }
+        .car-card:hover .car-actions { opacity: 1; }
         
         .icon-btn {
-            width: 32px; height: 32px; border-radius: 6px;
+            width: 30px; height: 30px; border-radius: 6px;
             border: 1px solid var(--border); background: var(--bg-input);
-            color: var(--text-secondary); font-size: 14px;
+            color: var(--text-secondary); font-size: 13px;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; transition: var(--transition);
+            position: relative;
         }
         .icon-btn:hover { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.1); }
-        .icon-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.2); }
+        .icon-btn.active { border-color: var(--gold) !important; color: var(--gold) !important; background: rgba(201,168,76,0.2) !important; }
+        .icon-btn .tooltip {
+            display: none; position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%);
+            background: #000; color: #fff; padding: 2px 8px; border-radius: 4px;
+            font-size: 10px; white-space: nowrap; margin-bottom: 4px;
+        }
+        .icon-btn:hover .tooltip { display: block; }
         
-        /* MODAL */
+        /* ========== LOCATION CHIP ========== */
+        .location-chip {
+            display: inline-flex; align-items: center; gap: 3px;
+            background: var(--bg-input); border: 1px solid var(--border);
+            border-radius: 4px; padding: 2px 8px; font-size: 9px;
+            color: var(--text-secondary);
+        }
+        
+        /* ========== EMPTY STATE ========== */
+        .empty-state {
+            grid-column: 1 / -1; text-align: center; padding: 60px 20px;
+            color: var(--text-secondary);
+        }
+        .empty-state .icon { font-size: 48px; margin-bottom: 16px; }
+        .empty-state .title { font-size: 16px; font-weight: 600; margin-bottom: 8px; }
+        .empty-state .desc { font-size: 12px; opacity: 0.7; }
+        
+        /* ========== MODAL ========== */
         .modal-overlay {
             display: none; position: fixed; inset: 0; z-index: 2000;
-            background: rgba(0,0,0,0.85); backdrop-filter: blur(5px);
-            align-items: center; justify-content: center;
+            background: rgba(0,0,0,0.85); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; padding: 16px;
         }
         .modal-overlay.open { display: flex; }
         .modal {
             background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 16px; padding: 24px; width: 95%; max-width: 600px;
+            border-radius: 16px; padding: 24px; width: 100%; max-width: 550px;
             max-height: 90vh; overflow-y: auto;
             box-shadow: 0 30px 80px rgba(0,0,0,0.8);
-            animation: slideUp 0.3s ease;
+            animation: modalIn 0.25s ease;
         }
-        .modal-large { max-width: 900px; }
-        @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .modal-large { max-width: 850px; }
+        .modal-full { max-width: 95vw; }
+        @keyframes modalIn { from { transform: translateY(20px) scale(0.96); opacity: 0; } to { transform: translateY(0) scale(1); opacity: 1; } }
         
-        .modal-title { font-family: 'Playfair Display', serif; font-size: 22px; color: var(--gold); margin-bottom: 8px; }
-        .modal-subtitle { font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; }
-        
-        /* FORM */
-        .form-group { margin-bottom: 16px; }
-        .form-group label { display: block; font-size: 11px; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px; }
-        .form-group input, .form-group select, .form-group textarea {
-            width: 100%; padding: 10px 12px; background: var(--bg-input);
-            border: 1px solid var(--border); border-radius: 8px;
-            color: var(--text-primary); font-size: 13px; font-family: inherit;
+        .modal-header {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            margin-bottom: 16px; padding-bottom: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+        .modal-title {
+            font-family: 'Playfair Display', serif; font-size: 22px;
+            color: var(--gold-light); font-weight: 700;
+        }
+        .modal-close {
+            background: none; border: none; color: var(--text-secondary);
+            font-size: 22px; cursor: pointer; padding: 4px; line-height: 1;
             transition: var(--transition);
         }
-        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: var(--gold); outline: none; }
+        .modal-close:hover { color: var(--red); }
+        
+        /* ========== FORM ========== */
+        .form-group { margin-bottom: 14px; }
+        .form-label {
+            display: block; font-size: 10px; color: var(--text-secondary);
+            margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+        .form-input, .form-select, .form-textarea {
+            width: 100%; padding: 10px 12px; background: var(--bg-input);
+            border: 1px solid var(--border); border-radius: 8px;
+            color: var(--text); font-size: 13px; font-family: inherit;
+            transition: var(--transition); outline: none;
+        }
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--gold); box-shadow: 0 0 0 2px rgba(201,168,76,0.15);
+        }
+        .form-textarea { resize: vertical; min-height: 60px; }
         .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        .form-row-3 { grid-template-columns: 1fr 1fr 1fr; }
+        .form-hint { font-size: 9px; color: var(--text-secondary); margin-top: 2px; }
+        .form-error { font-size: 10px; color: var(--red); margin-top: 2px; display: none; }
         
-        /* TABLE */
+        /* ========== COMPARE TABLE ========== */
         .compare-table { width: 100%; border-collapse: collapse; font-size: 12px; }
-        .compare-table th { background: var(--bg-input); color: var(--gold); padding: 12px; text-align: center; border: 1px solid var(--border); font-weight: 700; }
-        .compare-table td { padding: 12px; text-align: center; border: 1px solid var(--border); }
-        .compare-best { color: var(--green); font-weight: 700; }
+        .compare-table th {
+            background: var(--bg-input); color: var(--gold); padding: 10px 12px;
+            text-align: center; border: 1px solid var(--border); font-weight: 700;
+            position: sticky; top: 0; z-index: 1;
+        }
+        .compare-table td { padding: 10px 12px; text-align: center; border: 1px solid var(--border); }
+        .compare-table tr:nth-child(even) td { background: rgba(255,255,255,0.02); }
+        .compare-table td:first-child {
+            text-align: left; font-weight: 600; background: var(--bg-input);
+            color: var(--text-secondary); white-space: nowrap;
+            position: sticky; left: 0; z-index: 1;
+        }
+        .compare-best { color: var(--green) !important; font-weight: 700 !important; }
+        .compare-img { width: 100%; max-width: 180px; height: 120px; object-fit: cover; border-radius: 6px; }
         
-        /* PIPELINE */
-        .pipeline-container { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; padding: 16px; }
-        .pipeline-col { background: var(--bg-input); border-radius: 12px; padding: 16px; min-height: 300px; }
-        .pipeline-header { font-weight: 700; font-size: 14px; margin-bottom: 12px; text-align: center; }
-        .pipeline-card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 12px; margin-bottom: 8px; cursor: pointer; transition: var(--transition); }
+        /* ========== IMAGE GALLERY ========== */
+        .img-gallery {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 8px; margin: 12px 0;
+        }
+        .img-gallery img {
+            width: 100%; height: 150px; object-fit: cover; border-radius: 8px;
+            cursor: pointer; transition: var(--transition); border: 2px solid transparent;
+        }
+        .img-gallery img:hover { border-color: var(--gold); transform: scale(1.02); }
+        .img-gallery img.selected { border-color: var(--gold); }
+        
+        .img-upload-zone {
+            border: 2px dashed var(--border); border-radius: 8px;
+            padding: 20px; text-align: center; cursor: pointer;
+            transition: var(--transition); color: var(--text-secondary);
+            font-size: 12px;
+        }
+        .img-upload-zone:hover { border-color: var(--gold); color: var(--gold); }
+        .img-thumbs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+        .img-thumb {
+            width: 60px; height: 60px; object-fit: cover; border-radius: 6px;
+            border: 2px solid var(--border); cursor: pointer; position: relative;
+        }
+        .img-thumb:hover { border-color: var(--red); }
+        .img-thumb-remove {
+            position: absolute; top: -6px; right: -6px;
+            width: 18px; height: 18px; border-radius: 50%;
+            background: var(--red); color: #fff; font-size: 10px;
+            display: flex; align-items: center; justify-content: center;
+            cursor: pointer; opacity: 0; transition: opacity 0.2s;
+        }
+        .img-thumb:hover .img-thumb-remove { opacity: 1; }
+        
+        /* ========== PIPELINE ========== */
+        .pipeline-container {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+            padding: 8px; min-height: 400px;
+        }
+        .pipeline-col {
+            background: var(--bg-input); border-radius: 12px; padding: 14px;
+            border: 1px solid var(--border);
+        }
+        .pipeline-col-header {
+            font-weight: 700; font-size: 13px; margin-bottom: 10px;
+            text-align: center; padding-bottom: 8px; border-bottom: 2px solid var(--border);
+        }
+        .pipeline-card {
+            background: var(--bg-card); border: 1px solid var(--border);
+            border-radius: 8px; padding: 10px; margin-bottom: 8px;
+            cursor: pointer; transition: var(--transition); font-size: 11px;
+        }
         .pipeline-card:hover { border-color: var(--gold); transform: translateY(-2px); }
         
-        /* TAG CHIPS */
-        .tag-chip {
-            display: inline-flex; align-items: center; gap: 4px;
-            padding: 4px 12px; border-radius: 20px; font-size: 11px; font-weight: 600;
-            cursor: pointer; transition: var(--transition);
-            border: 1px solid var(--border); background: var(--bg-input);
-            color: var(--text-secondary);
-        }
-        .tag-chip.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,0.1); }
-        .tag-chip.hot.active { border-color: var(--red); color: var(--red); background: rgba(224,85,85,0.1); }
-        .tag-chip.recommended.active { border-color: var(--blue); color: var(--blue); background: rgba(85,153,238,0.1); }
-        .tag-chip.pricedrop.active { border-color: var(--green); color: var(--green); background: rgba(90,184,122,0.1); }
-        
-        /* CHAT FLOAT */
+        /* ========== CHAT WIDGET ========== */
         .chat-widget {
             position: fixed; bottom: 20px; right: 20px; z-index: 9999;
             display: flex; flex-direction: column; gap: 8px;
         }
         .chat-btn {
-            width: 56px; height: 56px; border-radius: 50%;
+            width: 50px; height: 50px; border-radius: 50%;
             display: flex; align-items: center; justify-content: center;
             cursor: pointer; box-shadow: 0 4px 16px rgba(0,0,0,0.3);
-            transition: var(--transition); font-size: 24px; border: none;
+            transition: var(--transition); font-size: 22px; border: none;
+            text-decoration: none;
         }
         .chat-btn:hover { transform: scale(1.1); }
         .chat-btn.line { background: #06c755; color: #fff; }
         .chat-btn.messenger { background: #0084ff; color: #fff; }
         .chat-btn.phone { background: var(--gold); color: #000; }
-        
-        /* TOAST */
-        .toast {
-            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
-            z-index: 9999; padding: 12px 24px;
-            background: var(--bg-card); border: 1px solid var(--border);
-            border-radius: 8px; font-size: 13px;
-            box-shadow: var(--shadow); animation: toastIn 0.3s ease;
+        .chat-btn.compare-float {
+            background: var(--bg-card); color: var(--gold);
+            border: 2px solid var(--gold); font-size: 12px; font-weight: 700;
+            display: none;
         }
-        @keyframes toastIn { from { transform: translateX(-50%) translateY(20px); opacity: 0; } to { transform: translateX(-50%) translateY(0); opacity: 1; } }
+        .chat-btn.compare-float.show { display: flex; }
         
-        /* USER MENU */
+        /* ========== TOAST ========== */
+        .toast-container {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            z-index: 9999; display: flex; flex-direction: column; gap: 6px;
+            pointer-events: none;
+        }
+        .toast {
+            padding: 10px 20px; border-radius: 8px; font-size: 13px; font-weight: 500;
+            box-shadow: var(--shadow); animation: toastIn 0.3s ease;
+            pointer-events: auto; max-width: 400px; text-align: center;
+        }
+        .toast-success { background: rgba(90,184,122,0.15); border: 1px solid rgba(90,184,122,0.3); color: var(--green); }
+        .toast-error { background: rgba(224,85,85,0.15); border: 1px solid rgba(224,85,85,0.3); color: var(--red); }
+        .toast-info { background: rgba(85,153,238,0.15); border: 1px solid rgba(85,153,238,0.3); color: var(--blue); }
+        .toast-warning { background: rgba(238,153,85,0.15); border: 1px solid rgba(238,153,85,0.3); color: var(--orange); }
+        @keyframes toastIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        
+        /* ========== USER DROPDOWN ========== */
         .user-dropdown {
             position: fixed; z-index: 9999;
             background: var(--bg-card); border: 1px solid var(--border);
             border-radius: 12px; padding: 8px; min-width: 220px;
-            box-shadow: var(--shadow); animation: fadeIn 0.2s ease;
+            box-shadow: var(--shadow); animation: fadeIn 0.15s ease;
         }
-        .user-dropdown button {
-            width: 100%; justify-content: flex-start; margin-bottom: 4px;
+        .user-dropdown-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 12px; border-radius: 6px; cursor: pointer;
+            font-size: 12px; transition: var(--transition); width: 100%;
+            border: none; background: none; color: var(--text);
+            font-family: inherit;
+        }
+        .user-dropdown-item:hover { background: var(--bg-input); color: var(--gold); }
+        .user-dropdown-divider { height: 1px; background: var(--border); margin: 4px 0; }
+        
+        /* ========== SECTION HEADER ========== */
+        .section-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 12px 16px; flex-wrap: wrap; gap: 8px;
+        }
+        .section-title {
+            font-family: 'Playfair Display', serif; font-size: 18px;
+            color: var(--gold); font-weight: 700;
+        }
+        .section-subtitle { font-size: 11px; color: var(--text-secondary); }
+        
+        /* ========== PRINT ========== */
+        @media print {
+            body { background: #fff !important; color: #000 !important; font-size: 11px; }
+            .topbar, .nav-tabs, .stats-bar, .breadcrumb, .car-actions,
+            .chat-widget, .no-print, .modal-overlay, .toast-container,
+            .img-upload-zone, .img-thumb-remove { display: none !important; }
+            .car-grid { grid-template-columns: 1fr 1fr; gap: 8px; padding: 8px; }
+            .car-card { break-inside: avoid; border: 1px solid #ddd; box-shadow: none; }
+            .car-card:hover { transform: none; }
+            .car-image-wrap { height: 150px; }
+            .car-price { color: #000 !important; }
+            .compare-table { font-size: 10px; }
+            .compare-table th, .compare-table td { padding: 6px 8px; }
         }
         
-        @media print {
-            body { background: #fff !important; color: #000 !important; }
-            .topbar, .chat-widget, .nav-tabs, .stats-bar, .car-actions, .no-print { display: none !important; }
-        }
+        /* ========== RESPONSIVE ========== */
         @media (max-width: 768px) {
-            .car-grid { grid-template-columns: 1fr; }
+            .topbar { gap: 4px; padding: 6px 10px; }
+            .topbar input, .topbar select { width: 100px !important; font-size: 10px; }
+            .car-grid { grid-template-columns: 1fr; padding: 8px; gap: 10px; }
+            .car-image-wrap { height: 180px; }
             .pipeline-container { grid-template-columns: 1fr; }
             .form-row { grid-template-columns: 1fr; }
+            .stats-bar { grid-template-columns: repeat(3, 1fr); }
+            .modal { padding: 16px; max-width: 95vw; }
+            .compare-table { font-size: 10px; }
+            .chat-widget { bottom: 10px; right: 10px; gap: 6px; }
+            .chat-btn { width: 44px; height: 44px; font-size: 18px; }
+            .section-header { padding: 8px 10px; }
+        }
+        @media (max-width: 480px) {
+            .stats-bar { grid-template-columns: repeat(2, 1fr); }
+            .car-actions { opacity: 1; }
+            .topbar input { width: 80px !important; }
         }
     </style>
 </head>
 <body>
 
 <!-- ==================== TOPBAR ==================== -->
-<div class="topbar">
-    <div class="logo" onclick="handleLogoClick()">🚗 Stock CEO</div>
-    <span id="syncStatus" style="font-size:10px;color:var(--text-secondary)">💾 Local</span>
+<header class="topbar">
+    <div class="logo" onclick="handleLogoClick()" title="คลิกเพื่อเปลี่ยนชื่อร้าน">🚗 Stock CEO</div>
+    
+    <!-- สถานะระบบ -->
+    <div class="topbar-status" id="syncStatusBar" title="สถานะการเชื่อมต่อ">
+        <span class="status-dot" id="syncDot"></span>
+        <span id="syncLabel">Offline</span>
+    </div>
+    
     <div class="spacer"></div>
-    <input type="text" id="searchInput" placeholder="🔍 ค้นหารถ..." style="width:200px;padding:8px 12px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px" oninput="debounceFilter()">
-    <select id="sortSelect" onchange="handleSort()" style="padding:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);font-size:12px">
+    
+    <!-- ค้นหา -->
+    <input type="search" id="searchInput" placeholder="🔍 ค้นหารถ..." 
+           style="width:180px;padding:7px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px"
+           oninput="debounceFilter()" autocomplete="off">
+    
+    <!-- เรียงลำดับ -->
+    <select id="sortSelect" onchange="handleSort()" 
+            style="padding:7px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;cursor:pointer">
         <option value="name-asc">🔤 ชื่อ ก-ฮ</option>
         <option value="name-desc">🔤 ชื่อ ฮ-ก</option>
         <option value="price-asc">💰 ต่ำ→สูง</option>
@@ -291,150 +552,259 @@
         <option value="year-desc">📅 ใหม่→เก่า</option>
         <option value="year-asc">📅 เก่า→ใหม่</option>
     </select>
-    <button class="btn btn-outline btn-sm" onclick="toggleEditMode()" id="lockBtn" style="display:none">🔒 ดู</button>
-    <span id="userInfo" style="font-size:11px;color:var(--text-secondary);cursor:pointer" onclick="showUserMenu()">👁️ Viewer</span>
+    
+    <!-- โหมดแก้ไข (Admin/User) -->
+    <button class="btn btn-outline btn-sm" onclick="toggleEditMode()" id="lockBtn" style="display:none">
+        🔒 ดูอย่างเดียว
+    </button>
+    
+    <!-- ข้อมูลผู้ใช้ -->
+    <span id="userInfo" style="font-size:11px;color:var(--text-secondary);cursor:pointer;white-space:nowrap" 
+          onclick="showUserMenu()" title="คลิกเพื่อดูเมนู">
+        👁️ Viewer
+    </span>
+    
+    <!-- ปุ่มล็อกอิน/ logout -->
     <span id="authSection">
         <button class="btn btn-outline btn-sm" onclick="showAuthModal()">🔑 เข้าสู่ระบบ</button>
     </span>
+    
+    <!-- รีเฟรช -->
+    <button class="btn btn-outline btn-sm" onclick="refreshAll()" title="รีเฟรชข้อมูล">🔄</button>
+    
+    <!-- Export Excel (User+Admin) -->
+    <button class="btn btn-outline btn-sm user-only" onclick="exportToExcel()" title="Export Excel">📊</button>
+    
+    <!-- ปุ่ม Admin -->
     <button class="btn btn-primary btn-sm admin-only" onclick="openAddCarModal()">＋ เพิ่มรถ</button>
-</div>
+</header>
 
-<!-- ==================== STATS ==================== -->
-<div class="stats-bar" id="statsBar"></div>
+<!-- ==================== BREADCRUMB ==================== -->
+<nav class="breadcrumb" id="breadcrumb">
+    <span onclick="switchTab('stock')">🏠 หน้าหลัก</span>
+    <span id="breadcrumbCurrent"> / 📦 สต็อกรถ</span>
+</nav>
+
+<!-- ==================== STATS BAR ==================== -->
+<section class="stats-bar" id="statsBar"></section>
 
 <!-- ==================== NAV TABS ==================== -->
-<div class="nav-tabs" id="navTabs"></div>
+<nav class="nav-tabs" id="navTabs"></nav>
 
 <!-- ==================== TAG FILTERS ==================== -->
-<div style="padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap" id="tagFilters"></div>
+<div style="padding:6px 16px;display:flex;gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);background:var(--bg-card)" id="tagFilters"></div>
 
-<!-- ==================== PANELS ==================== -->
-<div id="stockPanel" class="panel">
-    <div style="padding:8px 16px;display:flex;gap:8px;flex-wrap:wrap" id="filterChips"></div>
+<!-- ==================== STOCK PANEL ==================== -->
+<main id="stockPanel" class="panel">
+    <div style="padding:6px 16px;display:flex;gap:6px;flex-wrap:wrap" id="filterChips"></div>
     <div class="car-grid" id="carGrid"></div>
-</div>
+</main>
 
-<div id="comparePanel" class="panel" style="display:none;padding:16px">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:8px">
+<!-- ==================== COMPARE PANEL ==================== -->
+<main id="comparePanel" class="panel" style="display:none">
+    <div class="section-header">
         <div>
-            <h2 style="font-family:'Playfair Display',serif;color:var(--gold)">⚖️ เปรียบเทียบรถ</h2>
-            <p style="font-size:12px;color:var(--text-secondary)">เลือกได้สูงสุด 5 คัน | กด ⚖️ บนการ์ดรถ</p>
+            <div class="section-title">⚖️ เปรียบเทียบรถ</div>
+            <div class="section-subtitle">เลือกได้สูงสุด 5 คัน | กด ⚖️ บนการ์ดรถ</div>
         </div>
         <div style="display:flex;gap:8px;flex-wrap:wrap">
             <button class="btn btn-outline btn-sm" onclick="shareCompareLink()">🔗 แชร์ลิงก์</button>
             <button class="btn btn-outline btn-sm" onclick="printCompare()">🖨️ พิมพ์</button>
-            <button class="btn btn-danger btn-sm" onclick="clearCompare()">✕ ล้าง</button>
+            <button class="btn btn-danger btn-sm" onclick="clearCompare()">✕ ล้างทั้งหมด</button>
         </div>
     </div>
-    <div id="compareContent"></div>
-</div>
+    <div style="padding:0 16px 16px" id="compareContent"></div>
+</main>
 
-<div id="reportPanel" class="panel" style="display:none;padding:16px">
-    <div id="reportContent"></div>
-</div>
+<!-- ==================== REPORT PANEL ==================== -->
+<main id="reportPanel" class="panel" style="display:none">
+    <div class="section-header">
+        <div>
+            <div class="section-title">📊 รายงาน & วิเคราะห์</div>
+            <div class="section-subtitle">ภาพรวมสต็อกและผลประกอบการ</div>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="exportToExcel()">📊 Export Excel</button>
+    </div>
+    <div style="padding:0 16px 16px" id="reportContent"></div>
+</main>
 
-<div id="pipelinePanel" class="panel" style="display:none;padding:16px">
+<!-- ==================== PIPELINE PANEL ==================== -->
+<main id="pipelinePanel" class="panel" style="display:none">
+    <div class="section-header">
+        <div>
+            <div class="section-title">📋 Pipeline CRM</div>
+            <div class="section-subtitle">ติดตามสถานะลูกค้าแบบ Kanban</div>
+        </div>
+    </div>
     <div class="pipeline-container" id="pipelineContent"></div>
-</div>
+</main>
 
-<div id="calendarPanel" class="panel" style="display:none;padding:16px">
-    <div id="calendarContainer"></div>
-</div>
+<!-- ==================== CALENDAR PANEL ==================== -->
+<main id="calendarPanel" class="panel" style="display:none">
+    <div class="section-header">
+        <div>
+            <div class="section-title">📅 ปฏิทินนัดหมาย</div>
+            <div class="section-subtitle">จัดการนัดดูรถและติดตามลูกค้า</div>
+        </div>
+    </div>
+    <div style="padding:0 16px 16px" id="calendarContainer"></div>
+</main>
 
-<div id="alertsPanel" class="panel" style="display:none;padding:16px">
-    <div id="alertsContent"></div>
-</div>
+<!-- ==================== ALERTS PANEL ==================== -->
+<main id="alertsPanel" class="panel" style="display:none">
+    <div class="section-header">
+        <div>
+            <div class="section-title">🔔 การแจ้งเตือน</div>
+            <div class="section-subtitle">Warranty หมดอายุ, Dead Stock, และอื่นๆ</div>
+        </div>
+    </div>
+    <div style="padding:0 16px 16px" id="alertsContent"></div>
+</main>
 
 <!-- ==================== CHAT WIDGET ==================== -->
-<div class="chat-widget">
-    <button class="chat-btn compare-float" id="compareFloatBtn" onclick="switchTab('compare')" style="background:var(--bg-card);color:var(--gold);border:2px solid var(--gold);font-size:14px;font-weight:700;display:none">
+<div class="chat-widget no-print">
+    <button class="chat-btn compare-float" id="compareFloatBtn" onclick="switchTab('compare');window.scrollTo({top:0,behavior:'smooth'})">
         ⚖️<span id="compareFloatCount">0</span>
     </button>
-    <button class="chat-btn phone" onclick="window.location.href='tel:0649246689'">📞</button>
-    <button class="chat-btn line" onclick="window.open('https://line.me/ti/p/~ocshop518','_blank')">💚</button>
-    <button class="chat-btn messenger" onclick="window.open('https://m.me/stockceo','_blank')">💬</button>
+    <a class="chat-btn phone" href="tel:0649246689" title="โทรเลย">📞</a>
+    <a class="chat-btn line" href="https://line.me/ti/p/~ocshop518" target="_blank" title="แชท Line">💚</a>
+    <a class="chat-btn messenger" href="https://m.me/stockceo" target="_blank" title="Messenger">💬</a>
 </div>
 
 <!-- ==================== MODALS ==================== -->
+
+<!-- Auth Modal -->
 <div class="modal-overlay" id="authModal">
-    <div class="modal" style="max-width:420px">
-        <div class="modal-title">🔐 เข้าสู่ระบบ</div>
-        <div class="modal-subtitle">เข้าสู่ระบบเพื่อใช้งานฟีเจอร์ทั้งหมด</div>
-        <div class="form-group"><label>อีเมล</label><input type="email" id="authEmail" placeholder="your@email.com" autocomplete="email"></div>
-        <div class="form-group"><label>รหัสผ่าน</label><input type="password" id="authPassword" placeholder="••••••••" autocomplete="current-password"></div>
-        <div id="authError" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
-        <div style="display:flex;gap:8px">
+    <div class="modal" style="max-width:400px">
+        <div class="modal-header">
+            <div class="modal-title">🔐 เข้าสู่ระบบ</div>
+            <button class="modal-close" onclick="closeModal('authModal')">&times;</button>
+        </div>
+        <div class="form-group">
+            <label class="form-label">อีเมล</label>
+            <input type="email" class="form-input" id="authEmail" placeholder="your@email.com" autocomplete="email">
+        </div>
+        <div class="form-group">
+            <label class="form-label">รหัสผ่าน</label>
+            <input type="password" class="form-input" id="authPassword" placeholder="••••••••" autocomplete="current-password">
+        </div>
+        <div class="form-error" id="authError"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
             <button class="btn btn-outline" onclick="closeModal('authModal')" style="flex:1">ยกเลิก</button>
             <button class="btn btn-primary" onclick="handleLogin()" style="flex:1">เข้าสู่ระบบ</button>
         </div>
         <p style="text-align:center;margin-top:12px;font-size:11px;color:var(--text-secondary)">
-            ยังไม่มีบัญชี? <a href="#" onclick="closeModal('authModal');showRegisterModal()" style="color:var(--gold)">สมัครสมาชิก</a>
-            <br><a href="#" onclick="closeModal('authModal');showResetPasswordModal()" style="color:var(--text-secondary);font-size:10px">ลืมรหัสผ่าน?</a>
+            ยังไม่มีบัญชี? <a href="#" onclick="closeModal('authModal');showRegisterModal()" style="color:var(--gold);cursor:pointer">สมัครสมาชิก</a>
+            <br><a href="#" onclick="closeModal('authModal');showResetPasswordModal()" style="color:var(--text-secondary);font-size:10px;cursor:pointer">ลืมรหัสผ่าน?</a>
         </p>
     </div>
 </div>
 
+<!-- Add Car Modal -->
 <div class="modal-overlay" id="addCarModal">
-    <div class="modal">
-        <div class="modal-title">＋ เพิ่มรถใหม่</div>
-        <div class="form-row">
-            <div class="form-group"><label>ยี่ห้อ</label><input type="text" id="carBrand" placeholder="BMW"></div>
-            <div class="form-group"><label>รุ่น</label><input type="text" id="carName" placeholder="330e M Sport"></div>
+    <div class="modal modal-large">
+        <div class="modal-header">
+            <div class="modal-title">＋ เพิ่มรถใหม่</div>
+            <button class="modal-close" onclick="closeModal('addCarModal')">&times;</button>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>ปี</label><input type="number" id="carYear" placeholder="2022"></div>
-            <div class="form-group"><label>สี</label><input type="text" id="carColor" placeholder="ขาว"></div>
+            <div class="form-group"><label class="form-label">ยี่ห้อ *</label><input type="text" class="form-input" id="carBrand" placeholder="BMW"></div>
+            <div class="form-group"><label class="form-label">รุ่น *</label><input type="text" class="form-input" id="carName" placeholder="330e M Sport (G20)"></div>
+        </div>
+        <div class="form-row form-row-3">
+            <div class="form-group"><label class="form-label">ปี ค.ศ.</label><input type="number" class="form-input" id="carYear" placeholder="2022" min="1990" max="2030"></div>
+            <div class="form-group"><label class="form-label">สี</label><input type="text" class="form-input" id="carColor" placeholder="ขาว"></div>
+            <div class="form-group"><label class="form-label">เลขไมล์</label><input type="text" class="form-input" id="carMileage" placeholder="50,000 กม."></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>ทะเบียน</label><input type="text" id="carPlate" placeholder="กข 1234"></div>
-            <div class="form-group"><label>เลขไมล์</label><input type="text" id="carMileage" placeholder="50,000"></div>
+            <div class="form-group"><label class="form-label">ทะเบียน</label><input type="text" class="form-input" id="carPlate" placeholder="กข 1234"></div>
+            <div class="form-group"><label class="form-label">เลขตัวถัง (VIN)</label><input type="text" class="form-input" id="carVIN" placeholder="WBA..."></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>ราคา SP</label><input type="text" id="carSP" placeholder="1,490,000"></div>
-            <div class="form-group"><label>ราคา Net</label><input type="text" id="carNet" placeholder="1,390,000"></div>
+            <div class="form-group"><label class="form-label">ราคา SP (ราคาพิเศษ)</label><input type="text" class="form-input" id="carSP" placeholder="1,490,000"></div>
+            <div class="form-group"><label class="form-label">ราคา Net (ราคาสุทธิ) *</label><input type="text" class="form-input" id="carNet" placeholder="1,390,000"></div>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>สถานที่จอด</label><input type="text" id="carLocation" placeholder="ลาดพร้าว"></div>
-            <div class="form-group"><label>Tags</label>
-                <select id="carTags" multiple style="height:80px">
+            <div class="form-group"><label class="form-label">สถานที่จอด</label><input type="text" class="form-input" id="carLocation" placeholder="ลาดพร้าว"></div>
+            <div class="form-group">
+                <label class="form-label">Tags</label>
+                <select class="form-select" id="carTags" multiple style="height:70px">
                     <option value="hot">🔥 รถร้อน</option>
                     <option value="recommended">⭐ แนะนำ</option>
                     <option value="pricedrop">💰 ลดราคา</option>
                 </select>
             </div>
         </div>
-        <div class="form-group"><label>หมายเหตุ</label><textarea id="carNote" rows="2"></textarea></div>
-        <div style="display:flex;gap:8px">
+        
+        <!-- 💰 ต้นทุน -->
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+            <label class="form-label" style="color:var(--gold)">💰 ข้อมูลต้นทุน (เห็นเฉพาะ Admin)</label>
+            <div class="form-row form-row-3">
+                <div class="form-group"><label class="form-label">ราคาซื้อเข้า</label><input type="text" class="form-input" id="carCostPurchase" placeholder="850,000"></div>
+                <div class="form-group"><label class="form-label">ค่าซ่อม/ตกแต่ง</label><input type="text" class="form-input" id="carCostRepair" placeholder="30,000"></div>
+                <div class="form-group"><label class="form-label">ค่าดำเนินการอื่นๆ</label><input type="text" class="form-input" id="carCostOther" placeholder="15,000"></div>
+            </div>
+        </div>
+        
+        <!-- 📸 รูปภาพ -->
+        <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+            <label class="form-label" style="color:var(--gold)">📸 รูปภาพ (สูงสุด 8 รูป)</label>
+            <div class="img-upload-zone" onclick="document.getElementById('carImageInput').click()">
+                📁 คลิกเพื่ออัพโหลดรูปภาพ
+                <div class="form-hint">หรือวาง URL รูปด้านล่าง</div>
+            </div>
+            <input type="file" id="carImageInput" accept="image/*" multiple style="display:none" onchange="handleCarImageUpload(this)">
+            <div style="display:flex;gap:6px;margin-top:6px">
+                <input type="text" class="form-input" id="carImageURL" placeholder="วาง URL รูปภาพ แล้วกด ＋" 
+                       onkeydown="if(event.key==='Enter'){event.preventDefault();addCarImageURL()}">
+                <button class="btn btn-outline btn-sm" onclick="addCarImageURL()" style="flex-shrink:0">＋ เพิ่ม</button>
+            </div>
+            <div class="img-thumbs" id="carImageThumbs"></div>
+        </div>
+        
+        <div class="form-group" style="margin-top:12px">
+            <label class="form-label">หมายเหตุ</label>
+            <textarea class="form-textarea" id="carNote" rows="2" placeholder="เช่น จอดโชว์, รถสวย, มีตำหนิที่..."></textarea>
+        </div>
+        
+        <div style="display:flex;gap:8px;margin-top:16px">
             <button class="btn btn-outline" onclick="closeModal('addCarModal')" style="flex:1">ยกเลิก</button>
-            <button class="btn btn-primary" onclick="handleAddCar()" style="flex:1">เพิ่มรถ</button>
+            <button class="btn btn-primary" onclick="handleAddCar()" style="flex:2">✅ เพิ่มรถเข้าสต็อก</button>
         </div>
     </div>
 </div>
 
+<!-- Car Detail Modal -->
 <div class="modal-overlay" id="carDetailModal">
     <div class="modal modal-large">
         <div id="carDetailContent"></div>
     </div>
 </div>
 
+<!-- Contract Modal -->
 <div class="modal-overlay" id="contractModal">
     <div class="modal modal-large">
         <div id="contractContent"></div>
     </div>
 </div>
 
+<!-- Payment Modal -->
 <div class="modal-overlay" id="paymentModal">
     <div class="modal">
-        <div class="modal-title">💳 ชำระเงิน / มัดจำ</div>
+        <div class="modal-header">
+            <div class="modal-title">💳 ชำระเงิน / มัดจำ</div>
+            <button class="modal-close" onclick="closeModal('paymentModal')">&times;</button>
+        </div>
         <div id="paymentContent"></div>
     </div>
 </div>
 
-<!-- TOAST -->
-<div class="toast" id="toast" style="display:none"></div>
+<!-- ==================== TOAST CONTAINER ==================== -->
+<div class="toast-container" id="toastContainer"></div>
 
+<!-- ==================== JAVASCRIPT ==================== -->
 <script>
-// ==================== FIREBASE CONFIG ====================
+// ==================== A. FIREBASE CONFIG ====================
 const firebaseConfig = {
     apiKey: "AIzaSyDKOk5NRhDUhh6JlC2HkPoxy3yWcTLzVTc",
     authDomain: "ceonongteenoi-d5669.firebaseapp.com",
@@ -448,19 +818,22 @@ const firebaseConfig = {
 let firebaseReady = false;
 let auth = null;
 let db = null;
+let storage = null;
 
 try {
     firebase.initializeApp(firebaseConfig);
     auth = firebase.auth();
     db = firebase.database();
+    storage = firebase.storage();
     firebaseReady = true;
-    console.log('✅ Firebase initialized');
+    updateSyncStatus('online');
+    console.log('✅ Firebase ready');
 } catch(e) {
-    console.warn('⚠️ Firebase init failed, running in offline mode');
-    firebaseReady = false;
+    console.warn('⚠️ Firebase offline:', e.message);
+    updateSyncStatus('offline');
 }
 
-// ==================== GLOBAL STATE ====================
+// ==================== B. GLOBAL STATE ====================
 let cars = [];
 let currentUser = null;
 let userRole = 'viewer';
@@ -470,24 +843,37 @@ let isEditMode = false;
 let currentSort = 'name-asc';
 let crmData = {};
 let appointments = [];
+let pendingCarImages = []; // รูปภาพที่รอเพิ่มในฟอร์ม add car
 let siteSettings = { name: 'Stock CEO', logo: '', commissionRate: 5 };
 let lineNotifyToken = '';
 let activeFilter = 'all';
 let activeStatusFilter = '';
 let activeTagFilter = '';
 const MAX_COMPARE = 5;
+const MAX_IMAGES = 8;
 const PLACEHOLDER_IMG = 'https://images.unsplash.com/photo-1549317661-bd32c8ce0db2?w=600&q=80';
 
-// ==================== ROLES ====================
+// ==================== C. ROLES & PERMISSIONS ====================
 const ROLES = {
-    admin: { label: '👑 Admin', perms: ['view','edit','delete','quote','crm','report','export','data','sync','users','contact','compare','admin','commission','contract','payment','calendar','tags','settings'] },
-    user: { label: '👤 พนักงาน', perms: ['view','quote','report','export','contact','compare','edit','crm','calendar','payment','contract','tags'] },
-    viewer: { label: '👁️ Viewer', perms: ['view','compare','contact'] }
+    admin: {
+        label: '👑 Admin',
+        perms: ['view','edit','delete','quote','crm','report','export','data','sync','users','contact','compare','admin','commission','contract','payment','calendar','tags','settings']
+    },
+    user: {
+        label: '👤 พนักงาน',
+        perms: ['view','quote','report','export','contact','compare','edit','crm','calendar','payment','contract','tags']
+    },
+    viewer: {
+        label: '👁️ Viewer',
+        perms: ['view','compare','contact']
+    }
 };
 
-function hasPerm(action) { return ROLES[userRole]?.perms?.includes(action) ?? false; }
+function hasPerm(action) {
+    return ROLES[userRole]?.perms?.includes(action) ?? false;
+}
 
-// ==================== DATA MANAGEMENT ====================
+// ==================== D. DATA MANAGEMENT ====================
 function loadData() {
     try {
         cars = JSON.parse(localStorage.getItem('stockCEO_cars') || '[]');
@@ -503,43 +889,273 @@ function loadData() {
 }
 
 function saveData() {
-    localStorage.setItem('stockCEO_cars', JSON.stringify(cars));
-    localStorage.setItem('stockCEO_crm', JSON.stringify(crmData));
-    localStorage.setItem('stockCEO_appointments', JSON.stringify(appointments));
-    localStorage.setItem('stockCEO_compare', JSON.stringify(compareIds));
-    localStorage.setItem('stockCEO_settings', JSON.stringify(siteSettings));
+    try {
+        localStorage.setItem('stockCEO_cars', JSON.stringify(cars));
+        localStorage.setItem('stockCEO_crm', JSON.stringify(crmData));
+        localStorage.setItem('stockCEO_appointments', JSON.stringify(appointments));
+        localStorage.setItem('stockCEO_compare', JSON.stringify(compareIds));
+        localStorage.setItem('stockCEO_settings', JSON.stringify(siteSettings));
+        if (lineNotifyToken) localStorage.setItem('stockCEO_lineToken', lineNotifyToken);
+    } catch(e) {
+        showToast('⚠️ พื้นที่เก็บข้อมูลเต็ม กรุณาลบข้อมูลที่ไม่จำเป็น', 'warning');
+    }
 }
 
 function getDefaultCars() {
+    const today = new Date().toISOString().split('T')[0];
     return [
-        { id: 1, brand: 'Toyota', name: 'Yaris 1.2 e Sport', year: 2018, color: 'ดำ', plate: 'กข 7556', mileage: '122,000', sp: '279,000', net: '269,000', location: 'นครปฐม', note: 'จอดโชว์', status: 'show', images: [PLACEHOLDER_IMG], cost: { purchase: 180000, repair: 35000, other: 15000 }, dateAdded: '2024-01-15', warranty: { end: '15/1/2025' }, tags: ['hot'], salesPerson: 'สมชาย' },
-        { id: 2, brand: 'BMW', name: '330e M Sport (G20)', year: 2021, color: 'ขาว', plate: '6 ขว 8735', mileage: '98,000', sp: '1,240,000', net: '1,190,000', location: 'Platinum', note: 'จอดโชว์', status: 'show', images: ['https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600&q=80'], cost: { purchase: 850000, repair: 120000, other: 50000 }, dateAdded: '2024-06-01', warranty: { end: '26/9/2026' }, tags: ['recommended'], salesPerson: 'สมหญิง' },
-        { id: 3, brand: 'Honda', name: 'Civic 1.8 e:HEV RS', year: 2023, color: 'แดง', plate: '3 กค 9123', mileage: '15,000', sp: '1,090,000', net: '1,050,000', location: 'รัชดา', note: 'รถสวย', status: 'show', images: [PLACEHOLDER_IMG], cost: { purchase: 850000, repair: 0, other: 20000 }, dateAdded: '2024-08-20', warranty: { end: '20/8/2027' }, tags: ['pricedrop'], salesPerson: 'สมชาย' },
+        {
+            id: 1700000001,
+            brand: 'Toyota',
+            name: 'Yaris 1.2 e Sport',
+            year: 2018,
+            color: 'ดำ',
+            plate: 'กข 7556',
+            vin: 'MR053HY9305001234',
+            mileage: '122,000',
+            sp: '279,000',
+            net: '269,000',
+            location: 'นครปฐม',
+            note: 'จอดโชว์ รถสวย',
+            status: 'show',
+            images: [PLACEHOLDER_IMG],
+            cost: { purchase: 180000, repair: 35000, other: 15000 },
+            dateAdded: '2024-01-15',
+            warranty: { end: '15/1/2025' },
+            tags: ['hot'],
+            salesPerson: 'สมชาย'
+        },
+        {
+            id: 1700000002,
+            brand: 'BMW',
+            name: '330e M Sport (G20)',
+            year: 2021,
+            color: 'ขาว',
+            plate: '6 ขว 8735',
+            vin: 'WBA5R72080FL12345',
+            mileage: '98,000',
+            sp: '1,240,000',
+            net: '1,190,000',
+            location: 'Platinum',
+            note: 'จอดโชว์',
+            status: 'show',
+            images: ['https://images.unsplash.com/photo-1555215695-3004980ad54e?w=600&q=80'],
+            has360: true,
+            cost: { purchase: 850000, repair: 120000, other: 50000 },
+            dateAdded: '2024-06-01',
+            warranty: { end: '26/9/2026' },
+            tags: ['recommended'],
+            salesPerson: 'สมหญิง'
+        },
+        {
+            id: 1700000003,
+            brand: 'Honda',
+            name: 'Civic 1.8 e:HEV RS',
+            year: 2023,
+            color: 'แดง',
+            plate: '3 กค 9123',
+            vin: 'MRHFE4850NP020123',
+            mileage: '15,000',
+            sp: '1,090,000',
+            net: '1,050,000',
+            location: 'รัชดา',
+            note: 'รถสวย สภาพดี',
+            status: 'show',
+            images: [PLACEHOLDER_IMG],
+            cost: { purchase: 850000, repair: 0, other: 20000 },
+            dateAdded: '2024-08-20',
+            warranty: { end: '20/8/2027' },
+            tags: ['pricedrop'],
+            salesPerson: 'สมชาย'
+        }
     ];
 }
 
-// ==================== UTILS ====================
-function formatBaht(num) { return new Intl.NumberFormat('th-TH', { style: 'currency', currency: 'THB', maximumFractionDigits: 0 }).format(num || 0); }
-function parsePrice(str) { return parseFloat(String(str).replace(/[^0-9.-]/g, '')) || 0; }
-function esc(str) { return String(str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
-function calculateCost(car) { const c = car.cost || { purchase: 0, repair: 0, other: 0 }; return { ...c, total: (c.purchase||0) + (c.repair||0) + (c.other||0) }; }
-function calculateProfit(car) { if (car.status !== 'sold') return { profit: 0, margin: 0, commission: 0 }; const net = parsePrice(car.net); const cost = calculateCost(car).total; const profit = net - cost; return { profit, margin: net ? (profit/net)*100 : 0, commission: profit * (siteSettings.commissionRate/100) }; }
-function getAgingDays(car) { if (!car.dateAdded) return 0; return Math.ceil((new Date() - new Date(car.dateAdded)) / (1000*60*60*24)); }
-
-function showToast(msg, type = 'ok') {
-    const t = document.getElementById('toast');
-    t.textContent = msg; t.style.display = 'block';
-    t.style.borderColor = type === 'err' ? 'var(--red)' : 'var(--green)';
-    t.style.color = type === 'err' ? 'var(--red)' : 'var(--green)';
-    clearTimeout(t._timeout);
-    t._timeout = setTimeout(() => t.style.display = 'none', 2500);
+// ==================== E. UTILITIES ====================
+function formatBaht(num) {
+    if (!num && num !== 0) return '—';
+    return new Intl.NumberFormat('th-TH', {
+        style: 'currency',
+        currency: 'THB',
+        maximumFractionDigits: 0
+    }).format(num);
 }
 
-function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+function parsePrice(str) {
+    if (!str) return 0;
+    return parseFloat(String(str).replace(/[^0-9.-]/g, '')) || 0;
+}
 
-// ==================== AUTH ====================
+function esc(str) {
+    return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+}
+
+function calculateCost(car) {
+    const c = car.cost || { purchase: 0, repair: 0, other: 0 };
+    return {
+        purchase: c.purchase || 0,
+        repair: c.repair || 0,
+        other: c.other || 0,
+        total: (c.purchase || 0) + (c.repair || 0) + (c.other || 0)
+    };
+}
+
+function calculateProfit(car) {
+    if (car.status !== 'sold') return { profit: 0, margin: 0, commission: 0 };
+    const net = parsePrice(car.net);
+    const cost = calculateCost(car).total;
+    const profit = net - cost;
+    return {
+        profit,
+        margin: net > 0 ? (profit / net) * 100 : 0,
+        commission: profit * (siteSettings.commissionRate / 100)
+    };
+}
+
+function getAgingDays(car) {
+    if (!car.dateAdded) return 0;
+    return Math.ceil((new Date() - new Date(car.dateAdded)) / (1000 * 60 * 60 * 24));
+}
+
+function showToast(msg, type = 'success') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = `toast toast-${type}`;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transition = 'opacity 0.3s';
+        setTimeout(() => toast.remove(), 300);
+    }, 2500);
+}
+
+function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+}
+
+function updateSyncStatus(status) {
+    const dot = document.getElementById('syncDot');
+    const label = document.getElementById('syncLabel');
+    if (status === 'online') {
+        dot.classList.remove('offline');
+        label.textContent = 'Online';
+    } else {
+        dot.classList.add('offline');
+        label.textContent = 'Offline';
+    }
+}
+
+function refreshAll() {
+    if (firebaseReady && currentUser) {
+        showToast('🔄 กำลังโหลดข้อมูลจาก Cloud...', 'info');
+        loadCarsFromFirebase();
+    } else {
+        loadData();
+        renderAll();
+        showToast('✅ รีเฟรชข้อมูลเรียบร้อย', 'success');
+    }
+}
+
+async function loadCarsFromFirebase() {
+    if (!firebaseReady || !currentUser || !db) return;
+    try {
+        const snap = await db.ref('users/' + currentUser.uid + '/cars').once('value');
+        const data = snap.val();
+        if (data) {
+            cars = Object.values(data);
+            saveData();
+            renderAll();
+            showToast('✅ โหลดข้อมูลจาก Cloud สำเร็จ', 'success');
+        }
+    } catch(e) {
+        console.error('Firebase load error:', e);
+        showToast('⚠️ ใช้ข้อมูลจากเครื่องแทน', 'warning');
+    }
+}
+
+// ==================== F. IMAGE HANDLING ====================
+function handleCarImageUpload(input) {
+    const files = Array.from(input.files);
+    if (!files.length) return;
+    
+    if (pendingCarImages.length + files.length > MAX_IMAGES) {
+        showToast(`⚠️ อัพโหลดได้สูงสุด ${MAX_IMAGES} รูป`, 'warning');
+        input.value = '';
+        return;
+    }
+    
+    files.forEach(file => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            // บีบอัดรูป (Simple client-side)
+            const img = new Image();
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                const maxSize = 800;
+                let w = img.width, h = img.height;
+                if (w > maxSize || h > maxSize) {
+                    const ratio = Math.min(maxSize / w, maxSize / h);
+                    w = Math.round(w * ratio);
+                    h = Math.round(h * ratio);
+                }
+                canvas.width = w;
+                canvas.height = h;
+                canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+                pendingCarImages.push(canvas.toDataURL('image/jpeg', 0.8));
+                renderCarImageThumbs();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+    input.value = '';
+}
+
+function addCarImageURL() {
+    const input = document.getElementById('carImageURL');
+    const url = input.value.trim();
+    if (!url) return;
+    if (pendingCarImages.length >= MAX_IMAGES) {
+        showToast(`⚠️ เพิ่มได้สูงสุด ${MAX_IMAGES} รูป`, 'warning');
+        return;
+    }
+    pendingCarImages.push(url);
+    input.value = '';
+    renderCarImageThumbs();
+    showToast('✅ เพิ่มรูปภาพแล้ว', 'success');
+}
+
+function removeCarImage(index) {
+    pendingCarImages.splice(index, 1);
+    renderCarImageThumbs();
+}
+
+function renderCarImageThumbs() {
+    const container = document.getElementById('carImageThumbs');
+    if (!container) return;
+    if (!pendingCarImages.length) {
+        container.innerHTML = '<div style="color:var(--text-secondary);font-size:10px;padding:4px 0">ยังไม่มีรูปภาพ</div>';
+        return;
+    }
+    container.innerHTML = pendingCarImages.map((src, i) => `
+        <div class="img-thumb" onclick="removeCarImage(${i})" title="คลิกเพื่อลบ">
+            <img src="${src}" style="width:100%;height:100%;object-fit:cover">
+            <div class="img-thumb-remove">✕</div>
+        </div>
+    `).join('');
+}
+
+// ==================== G. AUTH ====================
 function showAuthModal() {
-    if (!firebaseReady) { showToast('⚠️ ระบบออฟไลน์ ไม่สามารถล็อกอินได้', 'err'); return; }
+    if (!firebaseReady) {
+        showToast('⚠️ ระบบออฟไลน์ ไม่สามารถล็อกอินได้', 'warning');
+        return;
+    }
     document.getElementById('authEmail').value = '';
     document.getElementById('authPassword').value = '';
     document.getElementById('authError').style.display = 'none';
@@ -551,14 +1167,16 @@ function showRegisterModal() {
     modal.className = 'modal-overlay open';
     modal.style.zIndex = '3000';
     modal.innerHTML = `
-        <div class="modal" style="max-width:420px">
-            <div class="modal-title">📝 สมัครสมาชิก</div>
-            <div class="modal-subtitle">สร้างบัญชีเพื่อใช้งานระบบ</div>
-            <div class="form-group"><label>อีเมล</label><input type="email" id="regEmail" placeholder="your@email.com"></div>
-            <div class="form-group"><label>รหัสผ่าน (6 ตัวขึ้นไป)</label><input type="password" id="regPassword" placeholder="••••••••"></div>
-            <div class="form-group"><label>ยืนยันรหัสผ่าน</label><input type="password" id="regPasswordConfirm" placeholder="••••••••"></div>
-            <div id="regError" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
-            <div style="display:flex;gap:8px">
+        <div class="modal" style="max-width:400px">
+            <div class="modal-header">
+                <div class="modal-title">📝 สมัครสมาชิก</div>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="form-group"><label class="form-label">อีเมล</label><input type="email" class="form-input" id="regEmail" placeholder="your@email.com"></div>
+            <div class="form-group"><label class="form-label">รหัสผ่าน (6 ตัวขึ้นไป)</label><input type="password" class="form-input" id="regPassword" placeholder="••••••••"></div>
+            <div class="form-group"><label class="form-label">ยืนยันรหัสผ่าน</label><input type="password" class="form-input" id="regPasswordConfirm" placeholder="••••••••"></div>
+            <div class="form-error" id="regError"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
                 <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove();showAuthModal()" style="flex:1">กลับ</button>
                 <button class="btn btn-primary" onclick="handleRegister(this.closest('.modal-overlay'))" style="flex:1">สมัครสมาชิก</button>
             </div>
@@ -574,6 +1192,8 @@ async function handleRegister(modalEl) {
     const passwordConfirm = modalEl.querySelector('#regPasswordConfirm').value;
     const errorEl = modalEl.querySelector('#regError');
     
+    errorEl.style.display = 'none';
+    
     if (!email || !password) { errorEl.textContent = '❌ กรุณากรอกอีเมลและรหัสผ่าน'; errorEl.style.display = 'block'; return; }
     if (password.length < 6) { errorEl.textContent = '❌ รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร'; errorEl.style.display = 'block'; return; }
     if (password !== passwordConfirm) { errorEl.textContent = '❌ รหัสผ่านไม่ตรงกัน'; errorEl.style.display = 'block'; return; }
@@ -581,13 +1201,15 @@ async function handleRegister(modalEl) {
     try {
         await auth.createUserWithEmailAndPassword(email, password);
         modalEl.remove();
-        showToast('✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ');
+        showToast('✅ สมัครสมาชิกสำเร็จ! ยินดีต้อนรับ', 'success');
     } catch(e) {
-        let msg = 'เกิดข้อผิดพลาด';
+        let msg = '❌ เกิดข้อผิดพลาด';
         if (e.code === 'auth/email-already-in-use') msg = '❌ อีเมลนี้ถูกใช้แล้ว';
         else if (e.code === 'auth/invalid-email') msg = '❌ รูปแบบอีเมลไม่ถูกต้อง';
-        else if (e.code === 'auth/weak-password') msg = '❌ รหัสผ่านอ่อนเกินไป';
-        errorEl.textContent = msg; errorEl.style.display = 'block';
+        else if (e.code === 'auth/weak-password') msg = '❌ รหัสผ่านอ่อนเกินไป (ต้อง 6 ตัวขึ้นไป)';
+        else msg = '❌ ' + e.message;
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
     }
 }
 
@@ -597,13 +1219,15 @@ function showResetPasswordModal() {
     modal.style.zIndex = '3000';
     modal.innerHTML = `
         <div class="modal" style="max-width:400px">
-            <div class="modal-title">🔑 ลืมรหัสผ่าน</div>
-            <div class="modal-subtitle">กรอกอีเมลเพื่อรับลิงก์รีเซ็ตรหัสผ่าน</div>
-            <div class="form-group"><label>อีเมล</label><input type="email" id="resetEmail" placeholder="your@email.com"></div>
-            <div id="resetError" style="color:var(--red);font-size:12px;margin-bottom:8px;display:none"></div>
-            <div style="display:flex;gap:8px">
+            <div class="modal-header">
+                <div class="modal-title">🔑 ลืมรหัสผ่าน</div>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="form-group"><label class="form-label">อีเมล</label><input type="email" class="form-input" id="resetEmail" placeholder="your@email.com"></div>
+            <div class="form-error" id="resetError"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
                 <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove();showAuthModal()" style="flex:1">กลับ</button>
-                <button class="btn btn-primary" onclick="handleResetPassword(this.closest('.modal-overlay'))" style="flex:1">ส่งลิงก์</button>
+                <button class="btn btn-primary" onclick="handleResetPassword(this.closest('.modal-overlay'))" style="flex:1">ส่งลิงก์รีเซ็ต</button>
             </div>
         </div>
     `;
@@ -613,14 +1237,17 @@ function showResetPasswordModal() {
 
 async function handleResetPassword(modalEl) {
     const email = modalEl.querySelector('#resetEmail').value.trim();
-    if (!email) { modalEl.querySelector('#resetError').textContent = '❌ กรุณากรอกอีเมล'; modalEl.querySelector('#resetError').style.display = 'block'; return; }
+    const errorEl = modalEl.querySelector('#resetError');
+    
+    if (!email) { errorEl.textContent = '❌ กรุณากรอกอีเมล'; errorEl.style.display = 'block'; return; }
+    
     try {
         await auth.sendPasswordResetEmail(email);
         modalEl.remove();
-        showToast('📧 ส่งลิงก์รีเซ็ตไปที่ ' + email);
+        showToast('📧 ส่งลิงก์รีเซ็ตรหัสผ่านไปที่ ' + email, 'success');
     } catch(e) {
-        modalEl.querySelector('#resetError').textContent = '❌ ' + e.message;
-        modalEl.querySelector('#resetError').style.display = 'block';
+        errorEl.textContent = '❌ ' + e.message;
+        errorEl.style.display = 'block';
     }
 }
 
@@ -629,20 +1256,28 @@ async function handleLogin() {
     const password = document.getElementById('authPassword').value;
     const errorEl = document.getElementById('authError');
     
-    if (!email || !password) { errorEl.textContent = '❌ กรุณากรอกอีเมลและรหัสผ่าน'; errorEl.style.display = 'block'; return; }
+    errorEl.style.display = 'none';
+    
+    if (!email || !password) {
+        errorEl.textContent = '❌ กรุณากรอกอีเมลและรหัสผ่าน';
+        errorEl.style.display = 'block';
+        return;
+    }
     
     try {
-        errorEl.style.display = 'none';
         await auth.signInWithEmailAndPassword(email, password);
         closeModal('authModal');
-        showToast('✅ เข้าสู่ระบบสำเร็จ');
+        showToast('✅ เข้าสู่ระบบสำเร็จ', 'success');
     } catch(e) {
-        let msg = 'เกิดข้อผิดพลาด';
-        if (e.code === 'auth/user-not-found') msg = '❌ ไม่พบบัญชีนี้';
+        let msg = '❌ เกิดข้อผิดพลาด';
+        if (e.code === 'auth/user-not-found') msg = '❌ ไม่พบบัญชีนี้ในระบบ';
         else if (e.code === 'auth/wrong-password') msg = '❌ รหัสผ่านไม่ถูกต้อง';
         else if (e.code === 'auth/invalid-email') msg = '❌ รูปแบบอีเมลไม่ถูกต้อง';
-        else if (e.code === 'auth/too-many-requests') msg = '❌ พยายามมากเกินไป กรุณารอสักครู่';
-        errorEl.textContent = msg; errorEl.style.display = 'block';
+        else if (e.code === 'auth/too-many-requests') msg = '❌ พยายามเข้าสู่ระบบมากเกินไป กรุณารอสักครู่';
+        else if (e.code === 'auth/user-disabled') msg = '❌ บัญชีนี้ถูกระงับการใช้งาน';
+        else msg = '❌ ' + e.message;
+        errorEl.textContent = msg;
+        errorEl.style.display = 'block';
     }
 }
 
@@ -654,54 +1289,85 @@ async function logout() {
         userRole = 'viewer';
         isEditMode = false;
         updateAuthUI();
-        showToast('🚪 ออกจากระบบแล้ว');
+        showToast('🚪 ออกจากระบบแล้ว', 'info');
     } catch(e) {
-        showToast('❌ ' + e.message, 'err');
+        showToast('❌ ' + e.message, 'error');
     }
 }
 
-// ==================== AUTH STATE LISTENER ====================
+// ==================== H. AUTH STATE LISTENER ====================
 if (firebaseReady && auth) {
     auth.onAuthStateChanged(async (user) => {
         if (user) {
             currentUser = user;
-            try {
-                const snap = await db.ref('users/' + user.uid + '/role').once('value');
-                let role = snap.val();
-                if (!role) {
-                    const isFirst = !localStorage.getItem('stockCEO_initialized');
-                    role = isFirst ? 'admin' : 'user';
-                    await db.ref('users/' + user.uid).set({ email: user.email, role, createdAt: Date.now(), lastLogin: Date.now() });
-                    if (isFirst) { localStorage.setItem('stockCEO_initialized', 'true'); showToast('👑 ยินดีต้อนรับ Admin คนแรก!'); }
-                } else {
-                    await db.ref('users/' + user.uid + '/lastLogin').set(Date.now());
-                }
-                userRole = role;
-            } catch(e) {
-                userRole = 'viewer';
+            let role = null;
+            
+            // Try Firebase
+            if (db) {
+                try {
+                    const snap = await db.ref('users/' + user.uid + '/role').once('value');
+                    role = snap.val();
+                } catch(e) {}
             }
+            
+            // Try LocalStorage
+            if (!role) {
+                const localUsers = JSON.parse(localStorage.getItem('stockCEO_users') || '{}');
+                if (localUsers[user.uid]) role = localUsers[user.uid].role;
+            }
+            
+            // Default
+            if (!role) {
+                const isFirst = !localStorage.getItem('stockCEO_initialized');
+                role = isFirst ? 'admin' : 'user';
+                
+                const userData = { email: user.email, role, createdAt: Date.now(), lastLogin: Date.now() };
+                
+                if (db) {
+                    try { await db.ref('users/' + user.uid).set(userData); } catch(e) {}
+                }
+                
+                const localUsers = JSON.parse(localStorage.getItem('stockCEO_users') || '{}');
+                localUsers[user.uid] = userData;
+                localStorage.setItem('stockCEO_users', JSON.stringify(localUsers));
+                
+                if (isFirst) {
+                    localStorage.setItem('stockCEO_initialized', 'true');
+                    showToast('👑 ยินดีต้อนรับ Admin คนแรก!', 'success');
+                }
+            }
+            
+            // Update lastLogin
+            if (db) {
+                try { await db.ref('users/' + user.uid + '/lastLogin').set(Date.now()); } catch(e) {}
+            }
+            
+            userRole = role;
+            updateSyncStatus('online');
         } else {
             currentUser = null;
             userRole = 'viewer';
+            updateSyncStatus('offline');
         }
         updateAuthUI();
     });
 }
 
-// ==================== UI UPDATES ====================
+// ==================== I. UI UPDATES ====================
 function updateAuthUI() {
     const userInfo = document.getElementById('userInfo');
     const authSection = document.getElementById('authSection');
     const lockBtn = document.getElementById('lockBtn');
+    const breadcrumb = document.getElementById('breadcrumbCurrent');
     
     if (currentUser) {
-        userInfo.textContent = `${ROLES[userRole]?.label || ''} ${currentUser.email?.split('@')[0] || ''}`;
+        userInfo.textContent = `${ROLES[userRole]?.label || ''} ${currentUser.email?.split('@')[0] || 'User'}`;
         userInfo.style.cursor = 'pointer';
         userInfo.onclick = showUserMenu;
         
         if (userRole === 'admin' || userRole === 'user') {
             lockBtn.style.display = 'inline-flex';
-            lockBtn.textContent = isEditMode ? '🔓 แก้ไข' : '🔒 ดู';
+            lockBtn.textContent = isEditMode ? '🔓 กำลังแก้ไข' : '🔒 ดูอย่างเดียว';
             lockBtn.className = `btn btn-sm ${isEditMode ? 'btn-primary' : 'btn-outline'}`;
         } else {
             lockBtn.style.display = 'none';
@@ -713,89 +1379,201 @@ function updateAuthUI() {
         userInfo.style.cursor = 'default';
         userInfo.onclick = null;
         lockBtn.style.display = 'none';
+        isEditMode = false;
         authSection.innerHTML = `<button class="btn btn-outline btn-sm" onclick="showAuthModal()">🔑 เข้าสู่ระบบ</button>`;
     }
     
-    document.querySelectorAll('.admin-only').forEach(el => el.style.display = hasPerm('edit') ? '' : 'none');
+    // Show/hide admin-only elements
+    document.querySelectorAll('.admin-only').forEach(el => {
+        el.style.display = hasPerm('edit') ? '' : 'none';
+    });
+    document.querySelectorAll('.user-only').forEach(el => {
+        el.style.display = (hasPerm('edit') || hasPerm('export')) ? '' : 'none';
+    });
+    
+    if (breadcrumb) {
+        breadcrumb.textContent = ' / ' + getCurrentTabLabel();
+    }
+    
     renderNavTabs();
     updateCompareUI();
     renderAll();
 }
 
 function toggleEditMode() {
-    if (!hasPerm('edit')) { showToast('❌ ไม่มีสิทธิ์แก้ไข', 'err'); return; }
+    if (!hasPerm('edit')) {
+        showToast('❌ ไม่มีสิทธิ์แก้ไข กรุณาเข้าสู่ระบบ', 'error');
+        return;
+    }
     isEditMode = !isEditMode;
     updateAuthUI();
-    renderAll();
 }
 
 function showUserMenu() {
     if (!currentUser) return;
+    
+    // Remove existing
     document.querySelectorAll('.user-dropdown').forEach(el => el.remove());
     
     const menu = document.createElement('div');
     menu.className = 'user-dropdown';
     menu.style.top = '50px';
     menu.style.right = '16px';
+    
     menu.innerHTML = `
         <div style="padding:8px 12px;border-bottom:1px solid var(--border);margin-bottom:4px">
             <div style="font-weight:600;font-size:13px">${currentUser.email}</div>
             <div style="font-size:10px;color:var(--text-secondary)">${ROLES[userRole]?.label || ''}</div>
         </div>
-        ${hasPerm('users') ? `<button class="btn btn-outline btn-sm" onclick="showUserManagement();this.parentElement.remove()">👥 จัดการผู้ใช้</button>` : ''}
-        ${hasPerm('settings') ? `<button class="btn btn-outline btn-sm" onclick="showSettings();this.parentElement.remove()">⚙️ ตั้งค่าระบบ</button>` : ''}
-        <button class="btn btn-outline btn-sm" onclick="logout();this.parentElement.remove()">🚪 ออกจากระบบ</button>
+        ${hasPerm('users') ? `<button class="user-dropdown-item" onclick="this.parentElement.remove();showUserManagement()">👥 จัดการผู้ใช้</button>` : ''}
+        ${hasPerm('settings') ? `<button class="user-dropdown-item" onclick="this.parentElement.remove();showSettings()">⚙️ ตั้งค่าระบบ</button>` : ''}
+        ${hasPerm('export') ? `<button class="user-dropdown-item" onclick="this.parentElement.remove();exportToExcel()">📊 Export Excel</button>` : ''}
+        <div class="user-dropdown-divider"></div>
+        <button class="user-dropdown-item" onclick="this.parentElement.remove();refreshAll()">🔄 รีเฟรชข้อมูล</button>
+        <button class="user-dropdown-item" onclick="this.parentElement.remove();logout()" style="color:var(--red)">🚪 ออกจากระบบ</button>
     `;
+    
     document.body.appendChild(menu);
     
     setTimeout(() => {
         document.addEventListener('click', function closeMenu(e) {
-            if (!menu.contains(e.target)) { menu.remove(); document.removeEventListener('click', closeMenu); }
+            if (!menu.contains(e.target)) {
+                menu.remove();
+                document.removeEventListener('click', closeMenu);
+            }
         });
     }, 100);
 }
 
-// ==================== USER MANAGEMENT (ADMIN) ====================
+function getCurrentTabLabel() {
+    const labels = {
+        stock: '📦 สต็อกรถ',
+        compare: '⚖️ เปรียบเทียบ',
+        report: '📊 รายงาน',
+        pipeline: '📋 Pipeline',
+        calendar: '📅 ปฏิทิน',
+        alerts: '🔔 การแจ้งเตือน'
+    };
+    return labels[currentTab] || currentTab;
+}
+
+// ==================== J. USER MANAGEMENT ====================
+function getLocalUsers() {
+    try { return JSON.parse(localStorage.getItem('stockCEO_users') || '{}'); } catch(e) { return {}; }
+}
+
+function saveLocalUsers(users) {
+    localStorage.setItem('stockCEO_users', JSON.stringify(users));
+}
+
+async function getAllUsers() {
+    if (firebaseReady && db && currentUser) {
+        try {
+            const snap = await db.ref('users').once('value');
+            const users = snap.val() || {};
+            saveLocalUsers(users);
+            return users;
+        } catch(e) {}
+    }
+    return getLocalUsers();
+}
+
 async function showUserManagement() {
-    if (!hasPerm('users')) return;
-    const snap = await db.ref('users').once('value');
-    const users = snap.val() || {};
+    if (!hasPerm('users')) {
+        showToast('❌ เฉพาะ Admin เท่านั้น', 'error');
+        return;
+    }
     
     const modal = document.createElement('div');
     modal.className = 'modal-overlay open';
     modal.style.zIndex = '3000';
-    modal.innerHTML = `
-        <div class="modal" style="max-width:600px">
+    modal.innerHTML = `<div class="modal" style="max-width:600px"><div style="text-align:center;padding:40px"><div style="font-size:32px;margin-bottom:12px">⏳</div>กำลังโหลด...</div></div>`;
+    document.body.appendChild(modal);
+    
+    const users = await getAllUsers();
+    const userList = Object.entries(users || {});
+    
+    modal.querySelector('.modal').innerHTML = `
+        <div class="modal-header">
             <div class="modal-title">👥 จัดการผู้ใช้</div>
-            <div class="modal-subtitle">กำหนดสิทธิ์ผู้ใช้แต่ละคน (Admin เท่านั้น)</div>
-            <div style="max-height:400px;overflow-y:auto">
-                ${Object.entries(users).map(([uid, data]) => `
-                    <div style="display:flex;justify-content:space-between;align-items:center;padding:12px;margin-bottom:8px;background:var(--bg-input);border:1px solid var(--border);border-radius:8px">
-                        <div>
-                            <div style="font-weight:600">${data.email || 'ไม่ระบุ'}</div>
-                            <div style="font-size:10px;color:var(--text-secondary)">ID: ${uid.slice(0,8)}... | ${new Date(data.createdAt).toLocaleDateString('th-TH')}</div>
+            <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+        </div>
+        <div style="font-size:11px;color:var(--text-secondary);margin-bottom:12px">
+            ${firebaseReady && currentUser ? '🟢 เชื่อมต่อ Firebase' : '🟡 โหมด LocalStorage'}
+            | ผู้ใช้ทั้งหมด: ${userList.length} คน
+        </div>
+        <div style="max-height:400px;overflow-y:auto;margin-bottom:12px">
+            ${userList.length === 0 ? `
+                <div style="text-align:center;padding:30px;color:var(--text-secondary)">
+                    <div style="font-size:36px;margin-bottom:8px">📭</div>
+                    <div>ยังไม่มีผู้ใช้ในระบบ</div>
+                </div>
+            ` : userList.map(([uid, data]) => {
+                const role = data.role || 'viewer';
+                const roleLabel = role === 'admin' ? '👑 Admin' : role === 'user' ? '👤 User' : '👁️ Viewer';
+                const isMe = uid === currentUser?.uid;
+                return `
+                    <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;margin-bottom:6px;background:var(--bg-input);border:1px solid ${isMe ? 'var(--gold)' : 'var(--border)'};border-radius:8px">
+                        <div style="flex:1">
+                            <div style="font-weight:600;font-size:12px">
+                                ${data.email || 'ไม่ระบุ'}
+                                ${isMe ? '<span style="background:var(--gold);color:#000;padding:1px 5px;border-radius:3px;font-size:8px;margin-left:4px">คุณ</span>' : ''}
+                            </div>
+                            <div style="font-size:9px;color:var(--text-secondary);margin-top:2px">
+                                ${new Date(data.createdAt).toLocaleDateString('th-TH')}
+                            </div>
                         </div>
-                        <select onchange="changeUserRole('${uid}', this.value)" style="padding:6px 10px;background:var(--bg-input);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);font-size:12px">
-                            <option value="admin" ${data.role==='admin'?'selected':''}>👑 Admin</option>
-                            <option value="user" ${data.role==='user'?'selected':''}>👤 User</option>
-                            <option value="viewer" ${data.role==='viewer'?'selected':''}>👁️ Viewer</option>
+                        <select onchange="changeUserRole('${uid}', this.value)" 
+                                style="padding:5px 8px;background:var(--bg-input);border:1px solid var(--border);border-radius:4px;color:var(--text);font-size:11px;cursor:pointer"
+                                ${isMe ? 'disabled' : ''}>
+                            <option value="admin" ${role==='admin'?'selected':''}>👑 Admin</option>
+                            <option value="user" ${role==='user'?'selected':''}>👤 User</option>
+                            <option value="viewer" ${role==='viewer'?'selected':''}>👁️ Viewer</option>
                         </select>
                     </div>
-                `).join('')}
-                ${!Object.keys(users).length ? '<div style="text-align:center;padding:20px;color:var(--text-secondary)">ยังไม่มีผู้ใช้</div>' : ''}
-            </div>
-            <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="width:100%;margin-top:12px">ปิด</button>
+                `;
+            }).join('')}
+        </div>
+        <div style="display:flex;gap:8px">
+            <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove()" style="flex:1">ปิด</button>
+            <button class="btn btn-outline btn-sm" onclick="this.closest('.modal-overlay').remove();setTimeout(()=>showUserManagement(),200)" style="flex:1">🔄 รีเฟรช</button>
         </div>
     `;
-    document.body.appendChild(modal);
+    
     modal.addEventListener('click', e => { if (e.target === modal) modal.remove(); });
 }
 
 async function changeUserRole(uid, newRole) {
     if (!hasPerm('users')) return;
-    await db.ref('users/' + uid + '/role').set(newRole);
-    if (uid === currentUser?.uid) { userRole = newRole; updateAuthUI(); }
-    showToast('✅ อัปเดทสิทธิ์แล้ว');
+    
+    let success = false;
+    
+    if (firebaseReady && db && currentUser) {
+        try {
+            await db.ref('users/' + uid + '/role').set(newRole);
+            success = true;
+        } catch(e) {}
+    }
+    
+    const localUsers = getLocalUsers();
+    if (localUsers[uid]) {
+        localUsers[uid].role = newRole;
+        saveLocalUsers(localUsers);
+        success = true;
+    }
+    
+    if (uid === currentUser?.uid) {
+        userRole = newRole;
+        updateAuthUI();
+    }
+    
+    if (success) {
+        showToast(`✅ เปลี่ยนสิทธิ์เป็น ${newRole} แล้ว`, 'success');
+        document.querySelectorAll('.modal-overlay').forEach(m => {
+            if (m.querySelector('.modal-title')?.textContent?.includes('จัดการผู้ใช้')) m.remove();
+        });
+        setTimeout(() => showUserManagement(), 300);
+    }
 }
 
 function showSettings() {
@@ -803,12 +1581,15 @@ function showSettings() {
     modal.className = 'modal-overlay open';
     modal.style.zIndex = '3000';
     modal.innerHTML = `
-        <div class="modal" style="max-width:500px">
-            <div class="modal-title">⚙️ ตั้งค่าระบบ</div>
-            <div class="form-group"><label>ชื่อร้าน</label><input type="text" id="setName" value="${esc(siteSettings.name)}"></div>
-            <div class="form-group"><label>อัตราคอมมิชชั่น (%)</label><input type="number" id="setCommission" value="${siteSettings.commissionRate}" min="0" max="100" step="0.5"></div>
-            <div class="form-group"><label>LINE Notify Token</label><input type="text" id="setLineToken" value="${lineNotifyToken}" placeholder="สำหรับแจ้งเตือนอัตโนมัติ"></div>
-            <div style="display:flex;gap:8px">
+        <div class="modal" style="max-width:450px">
+            <div class="modal-header">
+                <div class="modal-title">⚙️ ตั้งค่าระบบ</div>
+                <button class="modal-close" onclick="this.closest('.modal-overlay').remove()">&times;</button>
+            </div>
+            <div class="form-group"><label class="form-label">ชื่อร้าน</label><input type="text" class="form-input" id="setName" value="${esc(siteSettings.name)}"></div>
+            <div class="form-group"><label class="form-label">อัตราคอมมิชชั่น (%)</label><input type="number" class="form-input" id="setCommission" value="${siteSettings.commissionRate}" min="0" max="100" step="0.5"></div>
+            <div class="form-group"><label class="form-label">LINE Notify Token</label><input type="text" class="form-input" id="setLineToken" value="${lineNotifyToken}" placeholder="สำหรับแจ้งเตือนอัตโนมัติ"></div>
+            <div style="display:flex;gap:8px;margin-top:12px">
                 <button class="btn btn-outline" onclick="this.closest('.modal-overlay').remove()" style="flex:1">ยกเลิก</button>
                 <button class="btn btn-primary" onclick="saveSettings(this.closest('.modal-overlay'))" style="flex:1">บันทึก</button>
             </div>
@@ -821,15 +1602,14 @@ function showSettings() {
 function saveSettings(modalEl) {
     siteSettings.name = modalEl.querySelector('#setName').value || 'Stock CEO';
     siteSettings.commissionRate = parseFloat(modalEl.querySelector('#setCommission').value) || 5;
-    lineNotifyToken = modalEl.querySelector('#setLineToken').value;
-    localStorage.setItem('stockCEO_settings', JSON.stringify(siteSettings));
-    localStorage.setItem('stockCEO_lineToken', lineNotifyToken);
+    lineNotifyToken = modalEl.querySelector('#setLineToken').value.trim();
+    saveData();
     modalEl.remove();
     renderAll();
-    showToast('✅ บันทึกการตั้งค่าแล้ว');
+    showToast('✅ บันทึกการตั้งค่าแล้ว', 'success');
 }
 
-// ==================== RENDER ====================
+// ==================== K. RENDER ====================
 function renderAll() {
     renderStats();
     renderFilters();
@@ -844,22 +1624,46 @@ function renderStats() {
     const show = cars.filter(c => c.status === 'show').length;
     const sold = cars.filter(c => c.status === 'sold').length;
     const hold = cars.filter(c => c.status === 'hold').length;
+    const archived = cars.filter(c => c.status === 'archived').length;
     const totalValue = cars.reduce((sum, c) => sum + parsePrice(c.net), 0);
+    const showValue = cars.filter(c => c.status === 'show').reduce((sum, c) => sum + parsePrice(c.net), 0);
+    const soldValue = cars.filter(c => c.status === 'sold').reduce((sum, c) => sum + parsePrice(c.net), 0);
     
     let html = `
-        <div class="stat-card" onclick="filterByStatus('all')"><div class="stat-value">${total}</div><div class="stat-label">🚗 ทั้งหมด</div></div>
-        <div class="stat-card" onclick="filterByStatus('show')"><div class="stat-value" style="color:var(--green)">${show}</div><div class="stat-label">🟢 จอดโชว์</div></div>
-        <div class="stat-card" onclick="filterByStatus('hold')"><div class="stat-value" style="color:var(--gold)">${hold}</div><div class="stat-label">🟡 จอง</div></div>
-        <div class="stat-card" onclick="filterByStatus('sold')"><div class="stat-value" style="color:var(--red)">${sold}</div><div class="stat-label">🔴 ขายแล้ว</div></div>
-        <div class="stat-card"><div class="stat-value" style="font-size:16px">${totalValue.toLocaleString('th-TH')}</div><div class="stat-label">💰 มูลค่ารวม</div></div>
+        <div class="stat-card" onclick="filterByStatus('all')">
+            <div class="stat-value">${total}</div>
+            <div class="stat-label">🚗 ทั้งหมด</div>
+            <div class="stat-sub">${totalValue.toLocaleString('th-TH')} บาท</div>
+        </div>
+        <div class="stat-card" onclick="filterByStatus('show')">
+            <div class="stat-value" style="color:var(--green)">${show}</div>
+            <div class="stat-label">🟢 จอดโชว์</div>
+            <div class="stat-sub">${showValue.toLocaleString('th-TH')} บาท</div>
+        </div>
+        <div class="stat-card" onclick="filterByStatus('hold')">
+            <div class="stat-value" style="color:var(--gold)">${hold}</div>
+            <div class="stat-label">🟡 จอง</div>
+        </div>
+        <div class="stat-card" onclick="filterByStatus('sold')">
+            <div class="stat-value" style="color:var(--red)">${sold}</div>
+            <div class="stat-label">🔴 ขายแล้ว</div>
+            <div class="stat-sub">${soldValue.toLocaleString('th-TH')} บาท</div>
+        </div>
+        ${archived > 0 ? `<div class="stat-card" onclick="filterByStatus('archived')"><div class="stat-value" style="color:var(--text-secondary)">${archived}</div><div class="stat-label">🗄️ เก็บถาวร</div></div>` : ''}
     `;
     
     if (hasPerm('commission')) {
         const totalProfit = cars.filter(c => c.status === 'sold').reduce((s, c) => s + calculateProfit(c).profit, 0);
         const totalCommission = cars.filter(c => c.status === 'sold').reduce((s, c) => s + calculateProfit(c).commission, 0);
         html += `
-            <div class="stat-card"><div class="stat-value" style="font-size:16px;color:var(--green)">${formatBaht(totalProfit)}</div><div class="stat-label">📈 กำไรรวม</div></div>
-            <div class="stat-card"><div class="stat-value" style="font-size:16px;color:var(--blue)">${formatBaht(totalCommission)}</div><div class="stat-label">💸 คอมมิชชั่น</div></div>
+            <div class="stat-card">
+                <div class="stat-value" style="font-size:16px;color:var(--green)">${formatBaht(totalProfit)}</div>
+                <div class="stat-label">📈 กำไรรวม</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" style="font-size:16px;color:var(--blue)">${formatBaht(totalCommission)}</div>
+                <div class="stat-label">💸 คอมมิชชั่น</div>
+            </div>
         `;
     }
     
@@ -869,7 +1673,10 @@ function renderStats() {
 function renderFilters() {
     const brands = ['all', ...new Set(cars.map(c => c.brand))];
     document.getElementById('filterChips').innerHTML = brands.map(b => `
-        <button class="btn btn-sm ${activeFilter === b ? 'btn-primary' : 'btn-outline'}" onclick="setFilter('${b}')" style="font-size:10px">${b === 'all' ? '🚗 ทั้งหมด' : b}</button>
+        <button class="btn btn-sm ${activeFilter === b ? 'btn-primary' : 'btn-outline'}" 
+                onclick="setFilter('${b}')" style="font-size:10px">
+            ${b === 'all' ? '🚗 ทั้งหมด' : '🏷️ ' + b}
+        </button>
     `).join('');
 }
 
@@ -881,86 +1688,128 @@ function renderTagFilters() {
     ];
     document.getElementById('tagFilters').innerHTML = `
         <button class="tag-chip ${!activeTagFilter ? 'active' : ''}" onclick="filterByTag('')">ทั้งหมด</button>
-        ${tags.map(t => `<button class="tag-chip ${t.class} ${activeTagFilter === t.id ? 'active' : ''}" onclick="filterByTag('${t.id}')">${t.label}</button>`).join('')}
+        ${tags.map(t => `
+            <button class="tag-chip ${t.class} ${activeTagFilter === t.id ? 'active' : ''}" 
+                    onclick="filterByTag('${t.id}')">${t.label}</button>
+        `).join('')}
     `;
 }
 
 function getFilteredCars() {
     let filtered = [...cars];
     const q = (document.getElementById('searchInput')?.value || '').toLowerCase();
+    
     if (activeFilter !== 'all') filtered = filtered.filter(c => c.brand === activeFilter);
     if (activeStatusFilter) filtered = filtered.filter(c => c.status === activeStatusFilter);
     if (activeTagFilter) filtered = filtered.filter(c => (c.tags || []).includes(activeTagFilter));
-    if (q) filtered = filtered.filter(c => [c.brand, c.name, c.plate, c.color, String(c.year), c.location].some(v => (v||'').toLowerCase().includes(q)));
+    if (q) filtered = filtered.filter(c => 
+        [c.brand, c.name, c.plate, c.vin, c.color, String(c.year), c.location, c.note]
+            .some(v => (v || '').toLowerCase().includes(q))
+    );
     
-    if (currentSort === 'name-asc') filtered.sort((a,b) => (a.name||'').localeCompare(b.name||'','th'));
-    else if (currentSort === 'name-desc') filtered.sort((a,b) => (b.name||'').localeCompare(a.name||'','th'));
-    else if (currentSort === 'price-asc') filtered.sort((a,b) => parsePrice(a.net) - parsePrice(b.net));
-    else if (currentSort === 'price-desc') filtered.sort((a,b) => parsePrice(b.net) - parsePrice(a.net));
-    else if (currentSort === 'year-desc') filtered.sort((a,b) => (b.year||0) - (a.year||0));
-    else if (currentSort === 'year-asc') filtered.sort((a,b) => (a.year||0) - (b.year||0));
+    // Sort
+    if (currentSort === 'name-asc') filtered.sort((a, b) => (a.name || '').localeCompare(b.name || '', 'th'));
+    else if (currentSort === 'name-desc') filtered.sort((a, b) => (b.name || '').localeCompare(a.name || '', 'th'));
+    else if (currentSort === 'price-asc') filtered.sort((a, b) => parsePrice(a.net) - parsePrice(b.net));
+    else if (currentSort === 'price-desc') filtered.sort((a, b) => parsePrice(b.net) - parsePrice(a.net));
+    else if (currentSort === 'year-desc') filtered.sort((a, b) => (b.year || 0) - (a.year || 0));
+    else if (currentSort === 'year-asc') filtered.sort((a, b) => (a.year || 0) - (b.year || 0));
+    
     return filtered;
 }
 
 function renderGrid() {
     const filtered = getFilteredCars();
     const grid = document.getElementById('carGrid');
+    
     if (!filtered.length) {
-        grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--text-secondary)"><div style="font-size:48px;margin-bottom:16px">🔍</div><div>ไม่พบรถที่ค้นหา</div></div>`;
+        grid.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">🔍</div>
+                <div class="title">ไม่พบรถที่ค้นหา</div>
+                <div class="desc">ลองเปลี่ยนคำค้นหา หรือล้างตัวกรอง</div>
+                <button class="btn btn-outline btn-sm" onclick="clearAllFilters()" style="margin-top:12px">✕ ล้างตัวกรองทั้งหมด</button>
+            </div>
+        `;
         return;
     }
     
-    grid.innerHTML = filtered.map((c, i) => {
+    // คำนวณลำดับที่ถูกต้อง (กรองแล้วเรียงแล้ว)
+    const filteredSorted = getFilteredCars();
+    
+    grid.innerHTML = filteredSorted.map((c, i) => {
         const aging = getAgingDays(c);
         let agingClass = '', agingBadge = '';
-        if (c.status === 'show' && aging > 90) { agingClass = 'aging-90'; agingBadge = '<span style="position:absolute;top:10px;right:10px;background:#ff0000;color:#fff;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700">Dead Stock</span>'; }
-        else if (c.status === 'show' && aging > 60) { agingClass = 'aging-60'; agingBadge = '<span style="position:absolute;top:10px;right:10px;background:#ff9900;color:#fff;padding:2px 8px;border-radius:4px;font-size:9px;font-weight:700">จอดนาน</span>'; }
+        if (c.status === 'show' && aging > 90) {
+            agingClass = 'aging-90';
+            agingBadge = '<span style="position:absolute;top:8px;right:40px;background:#ff0000;color:#fff;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;z-index:2">Dead Stock</span>';
+        } else if (c.status === 'show' && aging > 60) {
+            agingClass = 'aging-60';
+            agingBadge = '<span style="position:absolute;top:8px;right:40px;background:#ff9900;color:#fff;padding:2px 6px;border-radius:3px;font-size:8px;font-weight:700;z-index:2">จอดนาน</span>';
+        }
         
         const isCompared = compareIds.includes(c.id);
         const cost = calculateCost(c);
         const profit = calculateProfit(c);
         const tags = c.tags || [];
-        let tagClass = '';
-        if (tags.includes('hot')) tagClass = 'hot-deal';
-        else if (tags.includes('recommended')) tagClass = 'recommended';
-        else if (tags.includes('pricedrop')) tagClass = 'price-drop';
+        let tagClasses = tags.map(t => `tag-${t}`).join(' ');
+        
+        // หาลำดับจริงใน cars array
+        const actualIndex = cars.findIndex(x => x.id === c.id) + 1;
         
         return `
-            <div class="car-card ${agingClass} ${isCompared?'compare-selected':''} ${tagClass}" style="animation-delay:${i*0.03}s">
+            <div class="car-card ${agingClass} ${isCompared ? 'compare-selected' : ''} ${tagClasses}" 
+                 style="animation-delay:${i * 0.03}s" id="card-${c.id}">
                 <div class="car-image-wrap" onclick="openCarDetail(${c.id})">
-                    <img class="car-image" src="${c.images?.[0] || PLACEHOLDER_IMG}" alt="${c.name}" loading="lazy" onerror="this.src='${PLACEHOLDER_IMG}'">
-                    <div class="car-badge">${cars.indexOf(c)+1}</div>
-                    ${c.status==='show'?'<div class="status-badge status-show">🟢 จอดโชว์</div>':''}
-                    ${c.status==='sold'?'<div class="status-badge status-sold">🔴 ขายแล้ว</div>':''}
-                    ${c.status==='hold'?'<div class="status-badge status-hold">🟡 จอง</div>':''}
+                    <img class="car-image" src="${c.images?.[0] || PLACEHOLDER_IMG}" 
+                         alt="${esc(c.brand)} ${esc(c.name)}" 
+                         loading="lazy" 
+                         onerror="this.src='${PLACEHOLDER_IMG}'">
+                    <div class="car-image-overlay"><span>🔍 ดูรายละเอียด</span></div>
+                    <div class="car-badge-num">${actualIndex}</div>
+                    ${c.status === 'show' ? '<div class="car-badge-status status-show">🟢 จอดโชว์</div>' : ''}
+                    ${c.status === 'sold' ? '<div class="car-badge-status status-sold">🔴 ขายแล้ว</div>' : ''}
+                    ${c.status === 'hold' ? '<div class="car-badge-status status-hold">🟡 จอง</div>' : ''}
                     ${agingBadge}
-                    ${tags.includes('hot')?'<div class="tag-badge tag-hot">🔥 ร้อน</div>':''}
-                    ${tags.includes('recommended')?'<div class="tag-badge tag-recommended">⭐ แนะนำ</div>':''}
-                    ${tags.includes('pricedrop')?'<div class="tag-badge tag-pricedrop">💰 ลด</div>':''}
+                    ${tags.includes('hot') ? '<div class="car-badge-tag tag-hot">🔥 ร้อน</div>' : ''}
+                    ${tags.includes('recommended') ? '<div class="car-badge-tag tag-recommended">⭐ แนะนำ</div>' : ''}
+                    ${tags.includes('pricedrop') ? '<div class="car-badge-tag tag-pricedrop">💰 ลด</div>' : ''}
+                    ${c.has360 ? '<div class="car-badge-tag tag-360">360°</div>' : ''}
                 </div>
                 <div class="car-body">
                     <div class="car-brand">${esc(c.brand)}</div>
                     <div class="car-name">${esc(c.name)}</div>
-                    <div class="car-info">
-                        <span>📅 ${c.year}</span><span>🎨 ${esc(c.color)}</span><span>🛣️ ${esc(c.mileage)} กม.</span>
-                        ${c.plate?`<span>🪪 ${esc(c.plate)}</span>`:''}
+                    <div class="car-meta">
+                        <span>📅 ${c.year}</span>
+                        <span>🎨 ${esc(c.color)}</span>
+                        <span>🛣️ ${esc(c.mileage)} กม.</span>
+                        ${c.plate ? `<span>🪪 ${esc(c.plate)}</span>` : ''}
                     </div>
-                    ${c.location?`<div style="font-size:10px;color:var(--text-secondary);margin:4px 0">📍 ${esc(c.location)}</div>`:''}
-                    <div class="car-price">${esc(c.net)} <small>บาท</small></div>
-                    ${hasPerm('commission') && (cost.total>0 || c.status==='sold') ? `
-                        <div style="margin-top:8px;padding:8px;background:var(--bg-input);border-radius:6px;font-size:10px">
-                            💰 ต้นทุน: ${formatBaht(cost.total)}
-                            ${c.status==='sold'?` | กำไร: ${formatBaht(profit.profit)} | คอม: ${formatBaht(profit.commission)}`:''}
+                    ${c.location ? `<div class="location-chip">📍 ${esc(c.location)}</div>` : ''}
+                    ${c.note && c.note !== '-' ? `<div style="font-size:9px;color:var(--text-secondary);font-style:italic">📝 ${esc(c.note)}</div>` : ''}
+                    
+                    <div class="car-price-section">
+                        <div>
+                            ${c.sp && c.sp !== c.net ? `<div class="car-price-sp">SP: ${esc(c.sp)} บาท</div>` : ''}
+                            <div class="car-price">${esc(c.net)} <small>บาท</small></div>
                         </div>
-                    `:''}
+                        ${hasPerm('commission') && (cost.total > 0 || c.status === 'sold') ? `
+                            <div class="car-cost-info">
+                                💰 ทุน: ${formatBaht(cost.total)}
+                                ${c.status === 'sold' ? `<br><span class="${profit.profit >= 0 ? 'car-profit' : 'car-loss'}">📈 กำไร: ${formatBaht(profit.profit)} (${profit.margin.toFixed(1)}%)</span>` : ''}
+                                ${c.status === 'sold' && profit.commission > 0 ? `<br>💸 คอม: ${formatBaht(profit.commission)}` : ''}
+                            </div>
+                        ` : ''}
+                    </div>
+                    
                     <div class="car-actions">
-                        ${hasPerm('compare')?`<button class="icon-btn ${isCompared?'active':''}" onclick="event.stopPropagation();toggleCompare(${c.id})">⚖️</button>`:''}
-                        ${hasPerm('contact')?`<button class="icon-btn" onclick="event.stopPropagation();openContact(${c.id})" style="color:var(--green)">💬</button>`:''}
-                        ${hasPerm('quote')?`<button class="icon-btn" onclick="event.stopPropagation();openQuote(${c.id})">📄</button>`:''}
-                        ${hasPerm('payment')?`<button class="icon-btn" onclick="event.stopPropagation();openPayment(${c.id})" style="color:var(--gold)">💳</button>`:''}
-                        ${hasPerm('contract')?`<button class="icon-btn" onclick="event.stopPropagation();openContract(${c.id})">📝</button>`:''}
-                        ${hasPerm('edit')?`<button class="icon-btn" onclick="event.stopPropagation();editCar(${c.id})">✏️</button>`:''}
-                        ${hasPerm('delete')?`<button class="icon-btn" onclick="event.stopPropagation();deleteCar(${c.id})" style="color:var(--red)">🗑️</button>`:''}
+                        ${hasPerm('compare') ? `<div class="icon-btn ${isCompared ? 'active' : ''}" onclick="event.stopPropagation();toggleCompare(${c.id})" title="เปรียบเทียบ"><span class="tooltip">⚖️ เปรียบเทียบ</span>⚖️</div>` : ''}
+                        ${hasPerm('contact') ? `<div class="icon-btn" onclick="event.stopPropagation();openContact(${c.id})" title="ติดต่อสอบถาม" style="color:var(--green)"><span class="tooltip">💬 ติดต่อ</span>💬</div>` : ''}
+                        ${hasPerm('quote') ? `<div class="icon-btn" onclick="event.stopPropagation();openQuote(${c.id})" title="ใบเสนอราคา"><span class="tooltip">📄 ใบเสนอราคา</span>📄</div>` : ''}
+                        ${hasPerm('payment') ? `<div class="icon-btn" onclick="event.stopPropagation();openPayment(${c.id})" title="ชำระเงิน" style="color:var(--gold)"><span class="tooltip">💳 ชำระเงิน</span>💳</div>` : ''}
+                        ${hasPerm('contract') ? `<div class="icon-btn" onclick="event.stopPropagation();openContract(${c.id})" title="สัญญาซื้อขาย"><span class="tooltip">📝 สัญญา</span>📝</div>` : ''}
+                        ${hasPerm('edit') ? `<div class="icon-btn" onclick="event.stopPropagation();editCar(${c.id})" title="แก้ไข"><span class="tooltip">✏️ แก้ไข</span>✏️</div>` : ''}
+                        ${hasPerm('delete') ? `<div class="icon-btn" onclick="event.stopPropagation();deleteCar(${c.id})" title="ลบ" style="color:var(--red)"><span class="tooltip">🗑️ ลบ</span>🗑️</div>` : ''}
                     </div>
                 </div>
             </div>
@@ -968,109 +1817,262 @@ function renderGrid() {
     }).join('');
 }
 
-// ==================== NAV TABS ====================
+// ==================== L. NAV TABS ====================
 function renderNavTabs() {
     const allTabs = [
         { id: 'stock', label: '📦 สต็อก', perm: 'view' },
         { id: 'compare', label: '⚖️ เปรียบเทียบ', perm: 'compare', badge: 'compareCount' },
         { id: 'report', label: '📊 รายงาน', perm: 'report' },
         { id: 'pipeline', label: '📋 Pipeline', perm: 'crm' },
-        { id: 'calendar', label: '📅 นัดหมาย', perm: 'calendar' },
+        { id: 'calendar', label: '📅 ปฏิทิน', perm: 'calendar' },
         { id: 'alerts', label: '🔔 แจ้งเตือน', perm: 'view' },
     ];
     
     document.getElementById('navTabs').innerHTML = allTabs
         .filter(tab => hasPerm(tab.perm))
         .map(tab => `
-            <div class="nav-tab ${currentTab === tab.id ? 'active' : ''}" data-tab="${tab.id}" onclick="switchTab('${tab.id}')">
+            <div class="nav-tab ${currentTab === tab.id ? 'active' : ''}" 
+                 data-tab="${tab.id}" 
+                 onclick="switchTab('${tab.id}')">
                 ${tab.label}
-                ${tab.badge ? `<span id="${tab.badge}" style="display:none;background:var(--gold);color:#000;padding:1px 6px;border-radius:10px;font-size:9px;margin-left:4px">0</span>` : ''}
+                ${tab.badge ? `<span class="badge" id="${tab.badge}" style="display:none">0</span>` : ''}
             </div>
         `).join('');
 }
 
-// ==================== COMPARE ====================
+// ==================== M. COMPARE ====================
 function toggleCompare(id) {
     const idx = compareIds.indexOf(id);
-    if (idx > -1) { compareIds.splice(idx, 1); showToast('นำออกแล้ว'); }
-    else {
-        if (compareIds.length >= MAX_COMPARE) { showToast(`⚠️ สูงสุด ${MAX_COMPARE} คัน`, 'err'); return; }
+    if (idx > -1) {
+        compareIds.splice(idx, 1);
+        showToast('นำออกจากเปรียบเทียบแล้ว', 'info');
+    } else {
+        if (compareIds.length >= MAX_COMPARE) {
+            showToast(`⚠️ เปรียบเทียบได้สูงสุด ${MAX_COMPARE} คัน`, 'warning');
+            return;
+        }
         compareIds.push(id);
+        showToast(`✅ เพิ่มรถคันที่ ${compareIds.length} แล้ว`, 'success');
     }
-    saveData(); updateCompareUI(); renderGrid();
+    saveData();
+    updateCompareUI();
+    renderGrid();
     if (currentTab === 'compare') renderCompare();
 }
 
 function updateCompareUI() {
     const cnt = document.getElementById('compareCount');
-    if (cnt) { cnt.textContent = compareIds.length; cnt.style.display = compareIds.length ? 'inline' : 'none'; }
+    if (cnt) {
+        cnt.textContent = compareIds.length;
+        cnt.style.display = compareIds.length ? 'inline-block' : 'none';
+    }
     const fb = document.getElementById('compareFloatBtn');
     const fc = document.getElementById('compareFloatCount');
-    if (fb && fc) { fc.textContent = compareIds.length; fb.style.display = compareIds.length ? 'flex' : 'none'; }
+    if (fb && fc) {
+        fc.textContent = compareIds.length;
+        if (compareIds.length > 0) {
+            fb.classList.add('show');
+        } else {
+            fb.classList.remove('show');
+        }
+    }
 }
 
-function clearCompare() { compareIds = []; saveData(); updateCompareUI(); renderGrid(); renderCompare(); }
-function shareCompareLink() {
-    if (!compareIds.length) return;
-    const url = `${location.origin}${location.pathname}?compare=${compareIds.join(',')}`;
-    navigator.clipboard?.writeText(url).then(() => showToast('🔗 คัดลอกลิงก์แล้ว!'));
+function clearCompare() {
+    compareIds = [];
+    saveData();
+    updateCompareUI();
+    renderGrid();
+    renderCompare();
+    showToast('ล้างการเปรียบเทียบแล้ว', 'info');
 }
-function printCompare() { switchTab('compare'); setTimeout(() => window.print(), 500); }
+
+function shareCompareLink() {
+    if (!compareIds.length) {
+        showToast('⚠️ กรุณาเลือกรถอย่างน้อย 1 คัน', 'warning');
+        return;
+    }
+    const url = `${location.origin}${location.pathname}?compare=${compareIds.join(',')}`;
+    navigator.clipboard?.writeText(url).then(() => {
+        showToast('🔗 คัดลอกลิงก์แล้ว! ส่งให้ลูกค้าได้เลย', 'success');
+    }).catch(() => {
+        prompt('คัดลอกลิงก์นี้:', url);
+    });
+}
+
+function printCompare() {
+    if (!compareIds.length) {
+        showToast('⚠️ กรุณาเลือกรถก่อนพิมพ์', 'warning');
+        return;
+    }
+    switchTab('compare');
+    setTimeout(() => window.print(), 300);
+}
 
 function renderCompare() {
     const container = document.getElementById('compareContent');
     if (!compareIds.length) {
-        container.innerHTML = '<div style="text-align:center;padding:60px;color:var(--text-secondary)"><div style="font-size:48px">⚖️</div><div>ยังไม่ได้เลือกรถ</div></div>';
+        container.innerHTML = `
+            <div class="empty-state">
+                <div class="icon">⚖️</div>
+                <div class="title">ยังไม่ได้เลือกรถ</div>
+                <div class="desc">กดปุ่ม ⚖️ บนการ์ดรถเพื่อเปรียบเทียบ (สูงสุด ${MAX_COMPARE} คัน)</div>
+            </div>
+        `;
         return;
     }
+    
     const sel = compareIds.map(id => cars.find(c => c.id === id)).filter(Boolean);
     const minPrice = Math.min(...sel.map(c => parsePrice(c.net)));
+    const maxYear = Math.max(...sel.map(c => c.year));
+    const minMileage = Math.min(...sel.map(c => parseInt(String(c.mileage).replace(/[^0-9]/g, '')) || 0));
     
     container.innerHTML = `
-        <div style="overflow-x:auto"><table class="compare-table">
-            <thead><tr><th>รายการ</th>${sel.map(c => `<th>${esc(c.brand)}<br><small>${esc(c.name)}</small></th>`).join('')}</tr></thead>
-            <tbody>
-                <tr><td><strong>📷</strong></td>${sel.map(c => `<td><img src="${c.images?.[0]||PLACEHOLDER_IMG}" style="width:100%;max-width:200px;height:120px;object-fit:cover;border-radius:8px"></td>`).join('')}</tr>
-                <tr><td><strong>📅 ปี</strong></td>${sel.map(c => `<td>${c.year}</td>`).join('')}</tr>
-                <tr><td><strong>🎨 สี</strong></td>${sel.map(c => `<td>${esc(c.color)}</td>`).join('')}</tr>
-                <tr><td><strong>🛣️ ไมล์</strong></td>${sel.map(c => `<td>${esc(c.mileage)}</td>`).join('')}</tr>
-                <tr><td><strong>🪪 ทะเบียน</strong></td>${sel.map(c => `<td style="color:var(--gold);font-weight:700">${esc(c.plate)}</td>`).join('')}</tr>
-                <tr><td><strong>📍 สถานที่</strong></td>${sel.map(c => `<td>${esc(c.location||'—')}</td>`).join('')}</tr>
-                <tr style="background:rgba(201,168,76,0.05)"><td><strong>💰 ราคา</strong></td>${sel.map(c => {const p=parsePrice(c.net);return`<td style="font-size:18px;font-weight:700;${p===minPrice&&sel.length>1?'color:var(--green)':''}">${esc(c.net)} บาท${p===minPrice&&sel.length>1?'<br><span style="font-size:10px">✓ ถูกสุด</span>':''}</td>`;}).join('')}</tr>
-                <tr><td><strong>💬</strong></td>${sel.map(c => `<td><button class="btn btn-success btn-sm" onclick="openContact(${c.id})">💬 สอบถาม</button></td>`).join('')}</tr>
-            </tbody>
-        </table></div>
-        <div style="margin-top:20px;padding:16px;background:var(--bg-input);border-radius:12px;text-align:center">
-            <p style="font-weight:700;color:var(--gold)">📞 สนใจติดต่อ</p>
-            <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
-                <a href="tel:0649246689" class="btn btn-outline">📱 064-924-6689</a>
-                <a href="https://line.me/ti/p/~ocshop518" target="_blank" class="btn btn-success" style="background:#06c755;color:#fff">💚 Line</a>
-                <a href="https://m.me/stockceo" target="_blank" class="btn btn-outline" style="background:#0084ff;color:#fff">💬 Messenger</a>
+        <div style="overflow-x:auto">
+            <table class="compare-table">
+                <thead>
+                    <tr>
+                        <th style="min-width:100px">รายการ</th>
+                        ${sel.map(c => `<th style="min-width:150px">${esc(c.brand)}<br><small style="font-weight:400;color:var(--text-secondary)">${esc(c.name.slice(0, 20))}</small></th>`).join('')}
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>📷 รูปภาพ</strong></td>
+                        ${sel.map(c => `<td><img src="${c.images?.[0] || PLACEHOLDER_IMG}" class="compare-img" loading="lazy" onerror="this.src='${PLACEHOLDER_IMG}'"></td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td><strong>📅 ปี</strong></td>
+                        ${sel.map(c => `<td${c.year === maxYear && sel.length > 1 ? ' class="compare-best"' : ''}>${c.year}${c.year === maxYear ? ' <small>ใหม่สุด</small>' : ''}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td><strong>🎨 สี</strong></td>
+                        ${sel.map(c => `<td>${esc(c.color)}</td>`).join('')}
+                    </tr>
+                    <tr>
+                        <td><strong>🛣️ เลขไมล์</strong></td>
+                        ${sel.map(c => {
+                            const m = parseInt(String(c.mileage).replace(/[^0-9]/g, '')) || 0;
+                            return `<td${m === minMileage && sel.length > 1 ? ' class="compare-best"' : ''}>${esc(c.mileage)} กม.${m === minMileage ? ' <small>น้อยสุด</small>' : ''}</td>`;
+                        }).join('')}
+                    </tr>
+                    <tr>
+                        <td><strong>🪪 ทะเบียน</strong></td>
+                        ${sel.map(c => `<td style="color:var(--gold);font-weight:700">${esc(c.plate)}</td>`).join('')}
+                    </tr>
+                    ${sel.some(c => c.vin) ? `
+                    <tr>
+                        <td><strong>🔢 VIN</strong></td>
+                        ${sel.map(c => `<td style="font-family:monospace;font-size:10px">${esc(c.vin || '—')}</td>`).join('')}
+                    </tr>` : ''}
+                    <tr>
+                        <td><strong>📍 สถานที่</strong></td>
+                        ${sel.map(c => `<td>${esc(c.location || '—')}</td>`).join('')}
+                    </tr>
+                    <tr style="background:rgba(201,168,76,0.05)">
+                        <td><strong>💰 ราคา Net</strong></td>
+                        ${sel.map(c => {
+                            const p = parsePrice(c.net);
+                            const isBest = p === minPrice && sel.length > 1;
+                            return `<td style="font-size:18px;font-weight:700;${isBest ? 'color:var(--green)' : ''}">${esc(c.net)} บาท${isBest ? '<br><span style="font-size:10px">✓ ถูกที่สุด</span>' : ''}</td>`;
+                        }).join('')}
+                    </tr>
+                    ${hasPerm('commission') ? `
+                    <tr>
+                        <td><strong>💰 ต้นทุน</strong></td>
+                        ${sel.map(c => `<td>${formatBaht(calculateCost(c).total)}</td>`).join('')}
+                    </tr>` : ''}
+                    <tr>
+                        <td><strong>💬 ติดต่อ</strong></td>
+                        ${sel.map(c => `<td><button class="btn btn-success btn-sm" onclick="openContact(${c.id})">💬 สอบถาม</button></td>`).join('')}
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <div style="margin-top:16px;padding:16px;background:var(--bg-input);border-radius:12px;text-align:center">
+            <p style="font-weight:700;color:var(--gold);margin-bottom:8px">📞 สนใจรถคันไหน? ติดต่อเราได้เลย</p>
+            <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+                <a href="tel:0649246689" class="btn btn-outline btn-sm">📱 064-924-6689</a>
+                <a href="https://line.me/ti/p/~ocshop518" target="_blank" class="btn btn-sm" style="background:#06c755;color:#fff;border-color:#06c755">💚 Line @ocshop518</a>
+                <a href="https://m.me/stockceo" target="_blank" class="btn btn-sm" style="background:#0084ff;color:#fff;border-color:#0084ff">💬 Messenger</a>
             </div>
         </div>
     `;
 }
 
-// ==================== MODALS ====================
+// ==================== N. MODALS ====================
 function openCarDetail(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const images = car.images?.length ? car.images : [PLACEHOLDER_IMG];
+    const cost = calculateCost(car);
+    const profit = calculateProfit(car);
+    const aging = getAgingDays(car);
+    
     const modal = document.getElementById('carDetailModal');
     modal.querySelector('#carDetailContent').innerHTML = `
-        <div style="display:flex;justify-content:space-between"><div class="modal-title">${esc(car.brand)} ${esc(car.name)}</div><button onclick="closeModal('carDetailModal')" style="background:none;border:none;color:var(--text-secondary);font-size:24px;cursor:pointer">&times;</button></div>
-        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin:16px 0">${images.map(img => `<img src="${img}" style="width:100%;height:200px;object-fit:cover;border-radius:8px" onerror="this.src='${PLACEHOLDER_IMG}'" onclick="window.open('${img}','_blank')">`).join('')}</div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
-            <div>📅 ปี: <strong>${car.year}</strong></div><div>🎨 สี: <strong>${esc(car.color)}</strong></div>
-            <div>🛣️ ไมล์: <strong>${esc(car.mileage)} กม.</strong></div><div>🪪 ทะเบียน: <strong>${esc(car.plate)}</strong></div>
-            <div>📍 สถานที่: <strong>${esc(car.location||'—')}</strong></div><div>💰 ราคา: <strong style="color:var(--gold);font-size:18px">${esc(car.net)} บาท</strong></div>
+        <div class="modal-header">
+            <div>
+                <div class="modal-title">${esc(car.brand)} ${esc(car.name)}</div>
+                <div style="font-size:10px;color:var(--text-secondary);margin-top:4px">
+                    รหัส: #${car.id} | เพิ่มเมื่อ: ${car.dateAdded ? new Date(car.dateAdded).toLocaleDateString('th-TH') : '—'}
+                    ${aging > 60 ? `| <span style="color:${aging > 90 ? 'var(--red)' : 'var(--orange)'}">⏰ จอด ${aging} วัน</span>` : ''}
+                </div>
+            </div>
+            <button class="modal-close" onclick="closeModal('carDetailModal')">&times;</button>
         </div>
-        <div style="display:flex;gap:8px;margin-top:16px;flex-wrap:wrap">
-            ${hasPerm('compare')?`<button class="btn btn-outline btn-sm" onclick="toggleCompare(${car.id})">⚖️ เปรียบเทียบ</button>`:''}
-            ${hasPerm('contact')?`<button class="btn btn-success btn-sm" onclick="closeModal('carDetailModal');openContact(${car.id})">💬 ติดต่อ</button>`:''}
-            ${hasPerm('quote')?`<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openQuote(${car.id})">📄 ใบเสนอราคา</button>`:''}
-            ${hasPerm('payment')?`<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openPayment(${car.id})">💳 ชำระเงิน</button>`:''}
-            ${hasPerm('contract')?`<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openContract(${car.id})">📝 สัญญา</button>`:''}
+        
+        <!-- Image Gallery -->
+        <div class="img-gallery">
+            ${images.map((img, i) => `
+                <img src="${img}" alt="รูปที่ ${i+1}" 
+                     onclick="window.open('${img}','_blank')" 
+                     onerror="this.src='${PLACEHOLDER_IMG}'"
+                     class="${i === 0 ? 'selected' : ''}">
+            `).join('')}
+        </div>
+        
+        <!-- Car Info -->
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin:16px 0">
+            <div><strong>📅 ปี:</strong> ${car.year}</div>
+            <div><strong>🎨 สี:</strong> ${esc(car.color)}</div>
+            <div><strong>🛣️ ไมล์:</strong> ${esc(car.mileage)} กม.</div>
+            <div><strong>🪪 ทะเบียน:</strong> <span style="color:var(--gold);font-weight:600">${esc(car.plate)}</span></div>
+            ${car.vin ? `<div><strong>🔢 VIN:</strong> <span style="font-family:monospace;font-size:11px">${esc(car.vin)}</span></div>` : ''}
+            <div><strong>📍 สถานที่:</strong> ${esc(car.location || '—')}</div>
+            <div><strong>💰 ราคา Net:</strong> <span style="color:var(--gold);font-size:20px;font-weight:700">${esc(car.net)} บาท</span></div>
+            ${car.sp && car.sp !== car.net ? `<div><strong>🏷️ ราคา SP:</strong> <s>${esc(car.sp)} บาท</s></div>` : ''}
+        </div>
+        
+        ${hasPerm('commission') ? `
+        <div style="background:var(--bg-input);border-radius:8px;padding:12px;margin:12px 0">
+            <strong>💰 ข้อมูลต้นทุน (เห็นเฉพาะ Admin)</strong>
+            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-top:8px">
+                <div>ซื้อเข้า: ${formatBaht(cost.purchase)}</div>
+                <div>ซ่อม/ตกแต่ง: ${formatBaht(cost.repair)}</div>
+                <div>อื่นๆ: ${formatBaht(cost.other)}</div>
+                <div><strong>รวม: ${formatBaht(cost.total)}</strong></div>
+                ${car.status === 'sold' ? `
+                    <div style="color:${profit.profit >= 0 ? 'var(--green)' : 'var(--red)'}">
+                        กำไร: ${formatBaht(profit.profit)} (${profit.margin.toFixed(1)}%)
+                    </div>
+                    <div style="color:var(--blue)">คอมมิชชั่น: ${formatBaht(profit.commission)}</div>
+                ` : ''}
+            </div>
+        </div>
+        ` : ''}
+        
+        ${car.note && car.note !== '-' ? `<div style="margin:8px 0;font-size:11px;color:var(--text-secondary)">📝 ${esc(car.note)}</div>` : ''}
+        
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:16px">
+            ${hasPerm('compare') ? `<button class="btn btn-outline btn-sm" onclick="toggleCompare(${car.id})">⚖️ เปรียบเทียบ</button>` : ''}
+            ${hasPerm('contact') ? `<button class="btn btn-success btn-sm" onclick="closeModal('carDetailModal');openContact(${car.id})">💬 ติดต่อสอบถาม</button>` : ''}
+            ${hasPerm('quote') ? `<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openQuote(${car.id})">📄 ใบเสนอราคา</button>` : ''}
+            ${hasPerm('payment') ? `<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openPayment(${car.id})">💳 ชำระเงิน</button>` : ''}
+            ${hasPerm('contract') ? `<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');openContract(${car.id})">📝 สัญญาซื้อขาย</button>` : ''}
+            ${hasPerm('edit') ? `<button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal');editCar(${car.id})">✏️ แก้ไข</button>` : ''}
         </div>
     `;
     modal.classList.add('open');
@@ -1079,16 +2081,25 @@ function openCarDetail(id) {
 function openContact(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const modal = document.getElementById('carDetailModal');
     modal.querySelector('#carDetailContent').innerHTML = `
-        <div class="modal-title">💬 สอบถาม</div>
-        <div class="modal-subtitle">${esc(car.brand)} ${esc(car.name)} | ${esc(car.net)} บาท</div>
-        <div style="display:flex;flex-direction:column;gap:8px">
-            <a href="tel:0649246689" class="btn btn-outline" style="justify-content:center">📱 โทร 064-924-6689</a>
-            <a href="https://line.me/ti/p/~ocshop518" target="_blank" class="btn" style="background:#06c755;color:#fff;justify-content:center">💚 Line</a>
-            <a href="https://m.me/stockceo" target="_blank" class="btn" style="background:#0084ff;color:#fff;justify-content:center">💬 Messenger</a>
+        <div class="modal-header">
+            <div class="modal-title">💬 สอบถามรถคันนี้</div>
+            <button class="modal-close" onclick="closeModal('carDetailModal')">&times;</button>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal')" style="width:100%;margin-top:16px">ปิด</button>
+        <div style="background:var(--bg-input);border-radius:8px;padding:16px;margin:12px 0">
+            <p style="font-size:14px;font-weight:600;color:var(--gold)">${esc(car.brand)} ${esc(car.name)} | ${car.year}</p>
+            <p>🛣️ ${esc(car.mileage)} กม. | 📍 ${esc(car.location || '—')}</p>
+            <p style="font-size:22px;font-weight:700;color:var(--gold-light);margin-top:8px">💰 ${esc(car.net)} บาท</p>
+            <p style="font-size:9px;color:var(--text-secondary);margin-top:4px">💡 แจ้งรหัสรถ: #${car.id} เมื่อติดต่อ</p>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+            <a href="tel:0649246689" class="btn btn-outline" style="justify-content:center">📱 โทรเลย 064-924-6689</a>
+            <a href="https://line.me/ti/p/~ocshop518" target="_blank" class="btn" style="background:#06c755;color:#fff;justify-content:center;border-color:#06c755">💚 แชท Line @ocshop518</a>
+            <a href="https://m.me/stockceo" target="_blank" class="btn" style="background:#0084ff;color:#fff;justify-content:center;border-color:#0084ff">💬 Messenger</a>
+        </div>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal')" style="width:100%;margin-top:12px">ปิด</button>
     `;
     modal.classList.add('open');
 }
@@ -1096,26 +2107,39 @@ function openContact(id) {
 function openQuote(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const modal = document.getElementById('carDetailModal');
     modal.querySelector('#carDetailContent').innerHTML = `
-        <div class="modal-title">📄 ใบเสนอราคา</div>
-        <div style="background:#fff;color:#000;padding:24px;border-radius:8px;margin:16px 0">
-            <div style="text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:12px">
-                <h2 style="font-family:'Playfair Display',serif;color:#c9a84c">${esc(siteSettings.name)}</h2>
-                <p style="font-size:11px">วันที่ ${new Date().toLocaleDateString('th-TH')}</p>
+        <div class="modal-header">
+            <div class="modal-title">📄 ใบเสนอราคา</div>
+            <button class="modal-close" onclick="closeModal('carDetailModal')">&times;</button>
+        </div>
+        <div style="background:#fff;color:#111;padding:20px;border-radius:8px;font-size:11px;line-height:1.6">
+            <div style="text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:10px;margin-bottom:10px">
+                <h2 style="font-family:'Playfair Display',serif;color:#c9a84c;margin:0">${esc(siteSettings.name)}</h2>
+                <p style="margin:2px 0;font-size:10px;color:#666">ใบเสนอราคา | วันที่ ${new Date().toLocaleDateString('th-TH', {year:'numeric', month:'long', day:'numeric'})}</p>
             </div>
-            <table style="width:100%;font-size:12px;margin-top:12px">
-                <tr><td style="color:#666">ยี่ห้อ/รุ่น</td><td><strong>${esc(car.brand)} ${esc(car.name)}</strong></td></tr>
-                <tr><td style="color:#666">ปี/สี</td><td>${car.year} / ${esc(car.color)}</td></tr>
-                <tr><td style="color:#666">ทะเบียน</td><td>${esc(car.plate)}</td></tr>
-                <tr><td style="color:#666">ไมล์</td><td>${esc(car.mileage)} กม.</td></tr>
+            <table style="width:100%;border-collapse:collapse">
+                <tr><td style="padding:4px 0;color:#666;width:120px">ยี่ห้อ/รุ่น</td><td style="padding:4px 0"><strong>${esc(car.brand)} ${esc(car.name)}</strong></td></tr>
+                <tr><td style="padding:4px 0;color:#666">ปี</td><td style="padding:4px 0">${car.year}</td></tr>
+                <tr><td style="padding:4px 0;color:#666">สี</td><td style="padding:4px 0">${esc(car.color)}</td></tr>
+                <tr><td style="padding:4px 0;color:#666">ทะเบียน</td><td style="padding:4px 0">${esc(car.plate)}</td></tr>
+                <tr><td style="padding:4px 0;color:#666">เลขไมล์</td><td style="padding:4px 0">${esc(car.mileage)} กม.</td></tr>
+                ${car.vin ? `<tr><td style="padding:4px 0;color:#666">VIN</td><td style="padding:4px 0;font-family:monospace">${esc(car.vin)}</td></tr>` : ''}
             </table>
-            <div style="text-align:center;margin-top:16px;padding:16px;background:#f8f3e8;border:2px solid #c9a84c;border-radius:8px">
-                <p style="font-size:24px;color:#c9a84c;font-weight:700">${esc(car.net)} บาท</p>
+            <div style="text-align:center;margin-top:12px;padding:12px;background:#f8f3e8;border:2px solid #c9a84c;border-radius:6px">
+                ${car.sp && car.sp !== car.net ? `<p style="font-size:10px;color:#888;margin:0">ราคาพิเศษ (SP): <s>${esc(car.sp)} บาท</s></p>` : ''}
+                <p style="font-size:24px;color:#c9a84c;font-weight:700;margin:4px 0;font-family:'Playfair Display',serif">${esc(car.net)} บาท</p>
+                <p style="font-size:10px;color:#666;margin:0">(ราคาสุทธิ รวมภาษี)</p>
+            </div>
+            <div style="text-align:center;margin-top:10px;font-size:9px;color:#999">
+                ราคานี้มีผลถึงวันที่ ${new Date(Date.now() + 7*24*60*60*1000).toLocaleDateString('th-TH')} | ติดต่อ: 064-924-6689
             </div>
         </div>
-        <button class="btn btn-primary btn-sm" onclick="printQuote(${id})">🖨️ พิมพ์</button>
-        <button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal')">ปิด</button>
+        <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn btn-outline btn-sm" onclick="closeModal('carDetailModal')" style="flex:1">ปิด</button>
+            <button class="btn btn-primary btn-sm" onclick="printQuote(${id})" style="flex:1">🖨️ พิมพ์</button>
+        </div>
     `;
     modal.classList.add('open');
 }
@@ -1123,48 +2147,82 @@ function openQuote(id) {
 function printQuote(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
-    const w = window.open('', '_blank');
-    w.document.write(`<html><head><meta charset="UTF-8"><title>ใบเสนอราคา</title><style>body{font-family:sans-serif;padding:24px;color:#000}.header{text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:12px}.price{text-align:center;margin:16px 0;padding:16px;background:#f8f3e8;border:2px solid #c9a84c;border-radius:8px}</style></head><body><div class="header"><h2>${siteSettings.name}</h2><p>ใบเสนอราคา | ${new Date().toLocaleDateString('th-TH')}</p></div><h3>${car.brand} ${car.name}</h3><p>ปี: ${car.year} | สี: ${car.color} | ทะเบียน: ${car.plate} | ไมล์: ${car.mileage} กม.</p><div class="price"><p style="font-size:24px;color:#c9a84c;font-weight:700">${car.net} บาท</p></div><p>ติดต่อ: 064-924-6689 | Line: @ocshop518</p></body></html>`);
-    w.document.close(); setTimeout(() => w.print(), 300);
+    const w = window.open('', '_blank', 'width=800,height=600');
+    w.document.write(`
+        <!DOCTYPE html><html><head><meta charset="UTF-8"><title>ใบเสนอราคา</title>
+        <style>body{font-family:'Noto Sans Thai',sans-serif;padding:24px;color:#000;font-size:12px}.header{text-align:center;border-bottom:2px solid #c9a84c;padding-bottom:12px}.price{text-align:center;margin:16px 0;padding:16px;background:#f8f3e8;border:2px solid #c9a84c;border-radius:8px}@media print{body{padding:12px}}</style>
+        </head><body>
+        <div class="header"><h2>${esc(siteSettings.name)}</h2><p>ใบเสนอราคา | ${new Date().toLocaleDateString('th-TH')}</p></div>
+        <h3>${esc(car.brand)} ${esc(car.name)}</h3>
+        <p>ปี: ${car.year} | สี: ${esc(car.color)} | ทะเบียน: ${esc(car.plate)} | ไมล์: ${esc(car.mileage)} กม.</p>
+        <div class="price"><p style="font-size:24px;color:#c9a84c;font-weight:700">${esc(car.net)} บาท</p></div>
+        <p>ติดต่อ: 064-924-6689 | Line: @ocshop518</p>
+        </body></html>
+    `);
+    w.document.close();
+    setTimeout(() => w.print(), 300);
 }
 
 function openPayment(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const modal = document.getElementById('paymentModal');
     modal.querySelector('#paymentContent').innerHTML = `
-        <div class="modal-subtitle">${esc(car.brand)} ${esc(car.name)} | ${esc(car.net)} บาท</div>
-        <div style="text-align:center;margin:16px 0">
-            <p style="font-weight:700;margin-bottom:8px">📱 QR PromptPay</p>
-            <div id="qrCode" style="display:flex;justify-content:center"></div>
-            <p style="font-size:11px;color:var(--text-secondary);margin-top:8px">บัญชี: 064-924-6689 | กสิกรไทย</p>
+        <div style="text-align:center">
+            <p style="font-weight:600;color:var(--gold);margin-bottom:4px">${esc(car.brand)} ${esc(car.name)}</p>
+            <p style="font-size:18px;font-weight:700;margin-bottom:16px">💰 ${esc(car.net)} บาท</p>
+            <p style="font-weight:600;margin-bottom:8px">📱 สแกน QR PromptPay</p>
+            <div id="paymentQR" style="display:flex;justify-content:center;margin:12px 0"></div>
+            <p style="font-size:10px;color:var(--text-secondary)">บัญชี: 064-924-6689 | ธนาคาร: กสิกรไทย</p>
+            <div style="margin-top:12px;padding:12px;background:var(--bg-input);border-radius:8px">
+                <p style="font-weight:600;margin-bottom:4px">💳 รับบัตรเครดิต</p>
+                <p style="font-size:10px;color:var(--text-secondary)">Visa, Mastercard, JCB | ชาร์จ 3%</p>
+            </div>
         </div>
-        <button class="btn btn-outline btn-sm" onclick="closeModal('paymentModal')" style="width:100%">ปิด</button>
+        <button class="btn btn-outline btn-sm" onclick="closeModal('paymentModal')" style="width:100%;margin-top:12px">ปิด</button>
     `;
     modal.classList.add('open');
+    
     setTimeout(() => {
-        try { new QRCode(document.getElementById('qrCode'), { text: '00020101021129370016A0000006770101110113006681234567853037645405100.005802TH53037646304B9C7', width: 180, height: 180 }); } catch(e) {}
+        try {
+            new QRCode(document.getElementById('paymentQR'), {
+                text: '00020101021129370016A0000006770101110113006681234567853037645405100.005802TH53037646304B9C7',
+                width: 160,
+                height: 160,
+                colorDark: '#000',
+                colorLight: '#fff'
+            });
+        } catch(e) {}
     }, 100);
 }
 
 function openContract(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const modal = document.getElementById('contractModal');
     modal.querySelector('#contractContent').innerHTML = `
-        <div class="modal-title">📝 สัญญาซื้อขาย</div>
-        <div class="modal-subtitle">${esc(car.brand)} ${esc(car.name)}</div>
-        <div class="form-row">
-            <div class="form-group"><label>ผู้ซื้อ</label><input type="text" id="buyerName"></div>
-            <div class="form-group"><label>เลขบัตร ปชช.</label><input type="text" id="buyerID"></div>
+        <div class="modal-header">
+            <div class="modal-title">📝 สัญญาซื้อขายรถยนต์</div>
+            <button class="modal-close" onclick="closeModal('contractModal')">&times;</button>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>ราคาซื้อขาย</label><input type="text" id="contractPrice" value="${esc(car.net)}"></div>
-            <div class="form-group"><label>เงินมัดจำ</label><input type="text" id="contractDeposit" placeholder="50,000"></div>
+            <div class="form-group"><label class="form-label">ชื่อผู้ซื้อ</label><input type="text" class="form-input" id="buyerName" placeholder="นาย..."></div>
+            <div class="form-group"><label class="form-label">เลขบัตรประชาชน</label><input type="text" class="form-input" id="buyerID" placeholder="x-xxxx-xxxxx-xx-x"></div>
         </div>
-        <div style="display:flex;gap:8px">
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">ที่อยู่</label><textarea class="form-textarea" id="buyerAddress" rows="2"></textarea></div>
+            <div class="form-group"><label class="form-label">เบอร์โทร</label><input type="tel" class="form-input" id="buyerTel"></div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">ราคาซื้อขาย</label><input type="text" class="form-input" id="contractPrice" value="${esc(car.net)}"></div>
+            <div class="form-group"><label class="form-label">เงินมัดจำ</label><input type="text" class="form-input" id="contractDeposit" placeholder="50,000"></div>
+        </div>
+        <div class="form-group"><label class="form-label">วันที่ส่งมอบ</label><input type="date" class="form-input" id="contractDelivery"></div>
+        <div style="display:flex;gap:8px;margin-top:12px">
             <button class="btn btn-outline" onclick="closeModal('contractModal')" style="flex:1">ยกเลิก</button>
-            <button class="btn btn-primary" onclick="generateContract(${id})" style="flex:1">📝 สร้าง PDF</button>
+            <button class="btn btn-primary" onclick="generateContract(${id})" style="flex:1">📝 สร้างสัญญา PDF</button>
         </div>
     `;
     modal.classList.add('open');
@@ -1173,248 +2231,741 @@ function openContract(id) {
 function generateContract(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
-    const buyer = document.getElementById('buyerName').value || '_______________';
-    const price = document.getElementById('contractPrice').value || car.net;
-    const deposit = document.getElementById('contractDeposit').value || '0';
+    
+    const buyer = document.getElementById('buyerName')?.value || '______________________________';
+    const price = document.getElementById('contractPrice')?.value || car.net;
+    const deposit = document.getElementById('contractDeposit')?.value || '0';
+    const delivery = document.getElementById('contractDelivery')?.value || '______________________________';
     
     const { jsPDF } = window.jspdf;
-    const doc = new jsPDF();
-    doc.setFontSize(18);
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(16);
     doc.text('สัญญาซื้อขายรถยนต์', 105, 20, { align: 'center' });
-    doc.setFontSize(10);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
     doc.text(`วันที่: ${new Date().toLocaleDateString('th-TH')}`, 105, 28, { align: 'center' });
-    doc.setFontSize(12);
-    doc.text(`ผู้ขาย: ${siteSettings.name} (064-924-6689)`, 14, 40);
-    doc.text(`ผู้ซื้อ: ${buyer}`, 14, 48);
-    doc.text(`รถ: ${car.brand} ${car.name} ปี ${car.year} สี ${car.color} ทะเบียน ${car.plate}`, 14, 58);
-    doc.text(`ราคาซื้อขาย: ${price} บาท | เงินมัดจำ: ${deposit} บาท`, 14, 68);
-    doc.text('ลงชื่อ ____________________ ผู้ขาย', 14, 100);
-    doc.text('ลงชื่อ ____________________ ผู้ซื้อ', 120, 100);
-    doc.save(`สัญญา_${car.brand}_${car.name}.pdf`);
-    showToast('📝 สร้างสัญญา PDF แล้ว');
+    
+    doc.setFontSize(10);
+    doc.text(`ผู้ขาย: ${siteSettings.name} | โทร: 064-924-6689 | Line: @ocshop518`, 14, 38);
+    doc.text(`ผู้ซื้อ: ${buyer}`, 14, 46);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('รายละเอียดรถยนต์', 14, 56);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`ยี่ห้อ: ${car.brand} | รุ่น: ${car.name} | ปี: ${car.year} | สี: ${car.color}`, 14, 64);
+    doc.text(`ทะเบียน: ${car.plate} | เลขตัวถัง: ${car.vin || '—'} | เลขไมล์: ${car.mileage} กม.`, 14, 70);
+    
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('เงื่อนไขการซื้อขาย', 14, 80);
+    
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9);
+    doc.text(`ราคาซื้อขาย: ${price} บาท | เงินมัดจำ: ${deposit} บาท`, 14, 88);
+    doc.text(`วันที่ส่งมอบ: ${delivery}`, 14, 94);
+    doc.text(`ผู้ขายรับประกันว่าเป็นเจ้าของกรรมสิทธิ์โดยถูกต้องตามกฎหมาย`, 14, 102);
+    
+    doc.setFontSize(10);
+    doc.text('ลงชื่อ ____________________ ผู้ขาย', 14, 130);
+    doc.text('ลงชื่อ ____________________ ผู้ซื้อ', 120, 130);
+    doc.text(`(${siteSettings.name})`, 14, 138);
+    doc.text(`(${buyer})`, 120, 138);
+    
+    doc.save(`สัญญาซื้อขาย_${car.brand}_${car.name}_${new Date().toISOString().split('T')[0]}.pdf`);
+    showToast('📝 สร้างสัญญา PDF สำเร็จ!', 'success');
+    closeModal('contractModal');
 }
 
-// ==================== ADD/EDIT/DELETE ====================
+// ==================== O. ADD/EDIT/DELETE CAR ====================
 function openAddCarModal() {
-    if (!hasPerm('edit')) return;
-    ['carBrand','carName','carYear','carColor','carPlate','carMileage','carSP','carNet','carLocation','carNote'].forEach(id => document.getElementById(id).value = '');
-    document.getElementById('carTags').selectedIndex = -1;
+    if (!hasPerm('edit')) {
+        showToast('❌ ไม่มีสิทธิ์เพิ่มรถ กรุณาเข้าสู่ระบบ', 'error');
+        return;
+    }
+    ['carBrand','carName','carYear','carColor','carPlate','carVIN','carMileage','carSP','carNet','carLocation','carNote',
+     'carCostPurchase','carCostRepair','carCostOther','carImageURL'].forEach(id => {
+        const el = document.getElementById(id);
+        if (el) el.value = '';
+    });
+    const tagsEl = document.getElementById('carTags');
+    if (tagsEl) tagsEl.selectedIndex = -1;
+    pendingCarImages = [];
+    renderCarImageThumbs();
     document.getElementById('addCarModal').classList.add('open');
 }
 
 function handleAddCar() {
+    const name = document.getElementById('carName').value.trim();
+    const brand = document.getElementById('carBrand').value.trim() || 'Unknown';
+    const net = document.getElementById('carNet').value.trim() || '0';
+    
+    if (!name) {
+        showToast('❌ กรุณากรอกชื่อรุ่นรถ', 'error');
+        return;
+    }
+    
     const car = {
         id: Date.now(),
-        brand: document.getElementById('carBrand').value || 'Unknown',
-        name: document.getElementById('carName').value || 'No Name',
+        brand,
+        name,
         year: parseInt(document.getElementById('carYear').value) || new Date().getFullYear(),
-        color: document.getElementById('carColor').value || '-',
-        plate: document.getElementById('carPlate').value || '',
-        mileage: document.getElementById('carMileage').value || '-',
-        sp: document.getElementById('carSP').value || '0',
-        net: document.getElementById('carNet').value || '0',
-        location: document.getElementById('carLocation').value || '',
-        note: document.getElementById('carNote').value || '',
+        color: document.getElementById('carColor').value.trim() || '-',
+        plate: document.getElementById('carPlate').value.trim() || '',
+        vin: document.getElementById('carVIN').value.trim() || '',
+        mileage: document.getElementById('carMileage').value.trim() || '-',
+        sp: document.getElementById('carSP').value.trim() || net,
+        net,
+        location: document.getElementById('carLocation').value.trim() || '',
+        note: document.getElementById('carNote').value.trim() || '',
         status: 'show',
-        images: [PLACEHOLDER_IMG],
-        cost: { purchase: 0, repair: 0, other: 0 },
+        images: pendingCarImages.length ? [...pendingCarImages] : [PLACEHOLDER_IMG],
+        cost: {
+            purchase: parsePrice(document.getElementById('carCostPurchase').value),
+            repair: parsePrice(document.getElementById('carCostRepair').value),
+            other: parsePrice(document.getElementById('carCostOther').value)
+        },
         dateAdded: new Date().toISOString().split('T')[0],
         warranty: {},
-        tags: Array.from(document.getElementById('carTags').selectedOptions).map(o => o.value),
-        salesPerson: currentUser?.email?.split('@')[0] || ''
+        tags: Array.from(document.getElementById('carTags').selectedOptions || []).map(o => o.value),
+        salesPerson: currentUser?.email?.split('@')[0] || 'Unknown'
     };
+    
     cars.unshift(car);
     saveData();
+    
+    // Sync to Firebase
+    if (firebaseReady && currentUser && db) {
+        try {
+            db.ref('users/' + currentUser.uid + '/cars/' + car.id).set(car);
+        } catch(e) {}
+    }
+    
     closeModal('addCarModal');
+    pendingCarImages = [];
     renderAll();
-    showToast('✅ เพิ่มรถแล้ว');
+    showToast('✅ เพิ่มรถเรียบร้อยแล้ว!', 'success');
+    
+    // LINE Notify
+    if (lineNotifyToken) {
+        sendLineNotify(`🚗 รถเข้าใหม่!\n${car.brand} ${car.name}\nปี: ${car.year} | สี: ${car.color}\nราคา: ${car.net} บาท\n📍 ${car.location || '—'}`);
+    }
 }
 
 function editCar(id) {
+    if (!hasPerm('edit')) return;
     const car = cars.find(c => c.id === id);
-    if (!car || !hasPerm('edit')) return;
+    if (!car) return;
+    
     const modal = document.getElementById('carDetailModal');
     modal.querySelector('#carDetailContent').innerHTML = `
-        <div class="modal-title">✏️ แก้ไข</div>
-        <div class="form-row">
-            <div class="form-group"><label>ยี่ห้อ</label><input type="text" id="eb" value="${esc(car.brand)}"></div>
-            <div class="form-group"><label>รุ่น</label><input type="text" id="en" value="${esc(car.name)}"></div>
+        <div class="modal-header">
+            <div class="modal-title">✏️ แก้ไขรถ</div>
+            <button class="modal-close" onclick="closeModal('carDetailModal')">&times;</button>
         </div>
         <div class="form-row">
-            <div class="form-group"><label>ราคา Net</label><input type="text" id="eNet" value="${esc(car.net)}"></div>
-            <div class="form-group"><label>สถานะ</label><select id="eSt"><option value="show" ${car.status==='show'?'selected':''}>🟢 จอดโชว์</option><option value="hold" ${car.status==='hold'?'selected':''}>🟡 จอง</option><option value="sold" ${car.status==='sold'?'selected':''}>🔴 ขายแล้ว</option></select></div>
+            <div class="form-group"><label class="form-label">ยี่ห้อ</label><input type="text" class="form-input" id="editBrand" value="${esc(car.brand)}"></div>
+            <div class="form-group"><label class="form-label">รุ่น</label><input type="text" class="form-input" id="editName" value="${esc(car.name)}"></div>
         </div>
-        <div class="form-group"><label>Tags</label><select id="eTags" multiple style="height:60px"><option value="hot" ${(car.tags||[]).includes('hot')?'selected':''}>🔥 รถร้อน</option><option value="recommended" ${(car.tags||[]).includes('recommended')?'selected':''}>⭐ แนะนำ</option><option value="pricedrop" ${(car.tags||[]).includes('pricedrop')?'selected':''}>💰 ลดราคา</option></select></div>
-        <div style="display:flex;gap:8px">
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">ราคา Net</label><input type="text" class="form-input" id="editNet" value="${esc(car.net)}"></div>
+            <div class="form-group"><label class="form-label">สถานะ</label>
+                <select class="form-select" id="editStatus">
+                    <option value="show" ${car.status==='show'?'selected':''}>🟢 จอดโชว์</option>
+                    <option value="hold" ${car.status==='hold'?'selected':''}>🟡 จอง</option>
+                    <option value="sold" ${car.status==='sold'?'selected':''}>🔴 ขายแล้ว</option>
+                    <option value="archived" ${car.status==='archived'?'selected':''}>🗄️ เก็บถาวร</option>
+                </select>
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group"><label class="form-label">สถานที่จอด</label><input type="text" class="form-input" id="editLocation" value="${esc(car.location||'')}"></div>
+            <div class="form-group"><label class="form-label">เลขไมล์</label><input type="text" class="form-input" id="editMileage" value="${esc(car.mileage)}"></div>
+        </div>
+        <div class="form-group">
+            <label class="form-label">Tags</label>
+            <select class="form-select" id="editTags" multiple style="height:60px">
+                <option value="hot" ${(car.tags||[]).includes('hot')?'selected':''}>🔥 รถร้อน</option>
+                <option value="recommended" ${(car.tags||[]).includes('recommended')?'selected':''}>⭐ แนะนำ</option>
+                <option value="pricedrop" ${(car.tags||[]).includes('pricedrop')?'selected':''}>💰 ลดราคา</option>
+            </select>
+        </div>
+        <div class="form-group"><label class="form-label">หมายเหตุ</label><textarea class="form-textarea" id="editNote">${esc(car.note||'')}</textarea></div>
+        <div style="display:flex;gap:8px;margin-top:16px">
             <button class="btn btn-outline" onclick="closeModal('carDetailModal')" style="flex:1">ยกเลิก</button>
-            <button class="btn btn-primary" onclick="saveEdit(${id})" style="flex:1">บันทึก</button>
+            <button class="btn btn-primary" onclick="saveEditCar(${id})" style="flex:1">💾 บันทึก</button>
         </div>
     `;
     modal.classList.add('open');
 }
 
-function saveEdit(id) {
+function saveEditCar(id) {
     const car = cars.find(c => c.id === id);
     if (!car) return;
+    
     const oldStatus = car.status;
-    car.brand = document.getElementById('eb').value;
-    car.name = document.getElementById('en').value;
-    car.net = document.getElementById('eNet').value;
-    car.status = document.getElementById('eSt').value;
-    car.tags = Array.from(document.getElementById('eTags').selectedOptions).map(o => o.value);
-    if (car.status === 'sold') car.soldDate = new Date().toISOString().split('T')[0];
+    
+    car.brand = document.getElementById('editBrand').value;
+    car.name = document.getElementById('editName').value;
+    car.net = document.getElementById('editNet').value;
+    car.status = document.getElementById('editStatus').value;
+    car.location = document.getElementById('editLocation').value;
+    car.mileage = document.getElementById('editMileage').value;
+    car.tags = Array.from(document.getElementById('editTags').selectedOptions).map(o => o.value);
+    car.note = document.getElementById('editNote').value;
+    
+    if (oldStatus !== 'sold' && car.status === 'sold') {
+        car.soldDate = new Date().toISOString().split('T')[0];
+    }
+    
     saveData();
+    
+    // Sync Firebase
+    if (firebaseReady && currentUser && db) {
+        try {
+            db.ref('users/' + currentUser.uid + '/cars/' + car.id).set(car);
+        } catch(e) {}
+    }
+    
     closeModal('carDetailModal');
     renderAll();
-    showToast('✅ บันทึกแล้ว');
+    showToast('✅ บันทึกการแก้ไขแล้ว', 'success');
+    
+    // Notify
     if (oldStatus !== 'sold' && car.status === 'sold') {
         const profit = calculateProfit(car);
-        sendLineNotify(`💰 ขายแล้ว!\n${car.brand} ${car.name}\nราคา: ${car.net} บาท\nกำไร: ${formatBaht(profit.profit)}`);
+        if (lineNotifyToken) {
+            sendLineNotify(`💰 ขายแล้ว!\n${car.brand} ${car.name}\nราคา: ${car.net} บาท\nกำไร: ${formatBaht(profit.profit)}\nคอมมิชชั่น: ${formatBaht(profit.commission)}`);
+        }
     }
 }
 
 function deleteCar(id) {
-    if (!hasPerm('delete')) return;
-    if (!confirm('ยืนยันการลบ?')) return;
+    if (!hasPerm('delete')) {
+        showToast('❌ ไม่มีสิทธิ์ลบรถ', 'error');
+        return;
+    }
+    const car = cars.find(c => c.id === id);
+    if (!car) return;
+    if (!confirm(`ยืนยันการลบ "${car.brand} ${car.name}"?\nการกระทำนี้ไม่สามารถยกเลิกได้`)) return;
+    
     cars = cars.filter(c => c.id !== id);
     compareIds = compareIds.filter(i => i !== id);
-    saveData(); renderAll(); showToast('🗑️ ลบแล้ว');
+    
+    saveData();
+    
+    // Remove from Firebase
+    if (firebaseReady && currentUser && db) {
+        try {
+            db.ref('users/' + currentUser.uid + '/cars/' + id).remove();
+        } catch(e) {}
+    }
+    
+    renderAll();
+    showToast('🗑️ ลบรถเรียบร้อยแล้ว', 'info');
 }
 
-// ==================== HELPERS ====================
-function setFilter(brand) { activeFilter = brand; activeStatusFilter = ''; renderFilters(); renderGrid(); }
-function filterByStatus(status) { activeStatusFilter = status; activeFilter = 'all'; renderFilters(); renderGrid(); }
-function filterByTag(tag) { activeTagFilter = tag; renderTagFilters(); renderGrid(); }
-function handleSort() { currentSort = document.getElementById('sortSelect').value; renderGrid(); }
-function debounceFilter() { clearTimeout(window._ft); window._ft = setTimeout(renderGrid, 250); }
-function handleLogoClick() { const name = prompt('ชื่อร้าน:', siteSettings.name); if (name) { siteSettings.name = name; saveData(); renderAll(); showToast('✅ บันทึกแล้ว'); } }
-
-// ==================== TAB SWITCHING ====================
-function switchTab(tab) {
-    currentTab = tab;
-    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
-    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
-    const panel = document.getElementById(tab + 'Panel');
-    const navTab = document.querySelector(`[data-tab="${tab}"]`);
-    if (panel) panel.style.display = 'block';
-    if (navTab) navTab.classList.add('active');
-    if (tab === 'compare') renderCompare();
-    if (tab === 'report') renderReport();
-    if (tab === 'pipeline') renderPipeline();
-    if (tab === 'calendar') renderCalendar();
-    if (tab === 'alerts') checkAlerts();
-}
-
-// ==================== REPORT ====================
+// ==================== P. REPORT ====================
 function renderReport() {
     if (!hasPerm('report')) return;
+    
+    const total = cars.length;
+    const sold = cars.filter(c => c.status === 'sold').length;
+    const totalValue = cars.reduce((s, c) => s + parsePrice(c.net), 0);
+    const totalProfit = cars.filter(c => c.status === 'sold').reduce((s, c) => s + calculateProfit(c).profit, 0);
+    const totalCost = cars.filter(c => c.status === 'sold').reduce((s, c) => s + calculateCost(c).total, 0);
+    const totalCommission = cars.filter(c => c.status === 'sold').reduce((s, c) => s + calculateProfit(c).commission, 0);
+    
     document.getElementById('reportContent').innerHTML = `
-        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;margin-bottom:24px">
-            <div class="stat-card"><div class="stat-value">${cars.length}</div><div class="stat-label">ทั้งหมด</div></div>
-            <div class="stat-card"><div class="stat-value" style="color:var(--red)">${cars.filter(c=>c.status==='sold').length}</div><div class="stat-label">ขายแล้ว</div></div>
-            <div class="stat-card"><div class="stat-value">${formatBaht(cars.reduce((s,c)=>s+parsePrice(c.net),0))}</div><div class="stat-label">มูลค่ารวม</div></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin-bottom:20px">
+            <div class="stat-card"><div class="stat-value">${total}</div><div class="stat-label">🚗 รถทั้งหมด</div></div>
+            <div class="stat-card"><div class="stat-value" style="color:var(--red)">${sold}</div><div class="stat-label">🔴 ขายแล้ว</div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:16px">${formatBaht(totalValue)}</div><div class="stat-label">💰 มูลค่าสต็อก</div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:16px;color:var(--green)">${formatBaht(totalProfit)}</div><div class="stat-label">📈 กำไรรวม</div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:16px">${formatBaht(totalCost)}</div><div class="stat-label">💸 ต้นทุนรวม</div></div>
+            <div class="stat-card"><div class="stat-value" style="font-size:16px;color:var(--blue)">${formatBaht(totalCommission)}</div><div class="stat-label">💳 คอมมิชชั่น</div></div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            <canvas id="brandChart"></canvas>
-            <canvas id="statusChart"></canvas>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">
+                <h4 style="color:var(--gold);margin-bottom:12px">📊 จำนวนรถตามยี่ห้อ</h4>
+                <canvas id="brandChart" height="250"></canvas>
+            </div>
+            <div style="background:var(--bg-card);border:1px solid var(--border);border-radius:12px;padding:16px">
+                <h4 style="color:var(--gold);margin-bottom:12px">🥧 สัดส่วนสถานะรถ</h4>
+                <canvas id="statusChart" height="250"></canvas>
+            </div>
         </div>
     `;
+    
     setTimeout(() => {
-        const brands = {}; cars.forEach(c => brands[c.brand] = (brands[c.brand]||0) + 1);
+        const brands = {};
+        cars.forEach(c => brands[c.brand] = (brands[c.brand] || 0) + 1);
         const ctx1 = document.getElementById('brandChart');
-        if (ctx1) new Chart(ctx1, { type: 'bar', data: { labels: Object.keys(brands), datasets: [{ label: 'จำนวน', data: Object.values(brands), backgroundColor: '#c9a84c' }] } });
+        if (ctx1) new Chart(ctx1, {
+            type: 'bar',
+            data: {
+                labels: Object.keys(brands),
+                datasets: [{
+                    label: 'จำนวนรถ',
+                    data: Object.values(brands),
+                    backgroundColor: '#c9a84c',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+        
         const ctx2 = document.getElementById('statusChart');
-        if (ctx2) new Chart(ctx2, { type: 'doughnut', data: { labels: ['จอดโชว์','จอง','ขายแล้ว'], datasets: [{ data: [cars.filter(c=>c.status==='show').length, cars.filter(c=>c.status==='hold').length, cars.filter(c=>c.status==='sold').length], backgroundColor: ['#5ab87a','#c9a84c','#e05555'] }] } });
+        if (ctx2) new Chart(ctx2, {
+            type: 'doughnut',
+            data: {
+                labels: ['จอดโชว์', 'จอง', 'ขายแล้ว', 'เก็บถาวร'],
+                datasets: [{
+                    data: [
+                        cars.filter(c => c.status === 'show').length,
+                        cars.filter(c => c.status === 'hold').length,
+                        cars.filter(c => c.status === 'sold').length,
+                        cars.filter(c => c.status === 'archived').length
+                    ],
+                    backgroundColor: ['#5ab87a', '#c9a84c', '#e05555', '#666'],
+                    borderWidth: 2,
+                    borderColor: 'var(--bg-card)'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false
+            }
+        });
     }, 200);
 }
 
-// ==================== PIPELINE ====================
+// ==================== Q. PIPELINE ====================
 function renderPipeline() {
-    const allLeads = Object.entries(crmData).flatMap(([carId, leads]) => leads.map(l => ({...l, carId: parseInt(carId)})));
-    const stages = ['contact','meeting','negotiate','sold'];
-    const labels = { contact: '👤 สนใจ', meeting: '📅 นัดดูรถ', negotiate: '🔥 ต่อรอง', sold: '✅ ขายแล้ว' };
-    const colors = { contact: 'var(--blue)', meeting: 'var(--gold)', negotiate: 'var(--orange)', sold: 'var(--green)' };
+    if (!hasPerm('crm')) return;
+    
+    const allLeads = Object.entries(crmData).flatMap(([carId, leads]) =>
+        (leads || []).map(l => ({ ...l, carId: parseInt(carId) }))
+    );
+    
+    const stages = [
+        { id: 'contact', label: '👤 สนใจ', color: '#5599ee' },
+        { id: 'meeting', label: '📅 นัดดูรถ', color: '#c9a84c' },
+        { id: 'negotiate', label: '🔥 ต่อรอง', color: '#ee9955' },
+        { id: 'sold', label: '✅ ขายแล้ว/ส่งมอบ', color: '#5ab87a' },
+    ];
     
     document.getElementById('pipelineContent').innerHTML = stages.map(stage => {
-        const leads = allLeads.filter(l => l.status === stage);
-        return `<div class="pipeline-col"><div class="pipeline-header" style="color:${colors[stage]}">${labels[stage]} (${leads.length})</div>${leads.map(l => { const car = cars.find(c => c.id === l.carId); return `<div class="pipeline-card" onclick="openCarDetail(${l.carId})"><strong>${esc(l.name)}</strong><div style="font-size:10px;color:var(--text-secondary)">📱 ${esc(l.tel)}</div>${car?`<div style="font-size:10px;color:var(--gold)">🚗 ${esc(car.brand)} ${esc(car.name)}</div>`:''}</div>`; }).join('')}${!leads.length?'<div style="text-align:center;color:var(--text-secondary);padding:20px">— ว่าง —</div>':''}</div>`;
+        const leads = allLeads.filter(l => l.status === stage.id);
+        return `
+            <div class="pipeline-col">
+                <div class="pipeline-col-header" style="color:${stage.color};border-bottom-color:${stage.color}">
+                    ${stage.label}
+                    <span style="font-size:10px;opacity:0.7">(${leads.length})</span>
+                </div>
+                ${leads.map(l => {
+                    const car = cars.find(c => c.id === l.carId);
+                    return `
+                        <div class="pipeline-card" onclick="${car ? `openCarDetail(${l.carId})` : ''}">
+                            <div style="font-weight:600">${esc(l.name)}</div>
+                            <div style="font-size:9px;color:var(--text-secondary);margin-top:2px">📱 ${esc(l.tel)}</div>
+                            ${car ? `<div style="font-size:9px;color:var(--gold);margin-top:2px">🚗 ${esc(car.brand)} ${esc(car.name)}</div>` : ''}
+                            ${l.source ? `<div style="font-size:8px;color:var(--text-secondary);margin-top:2px">📌 ${l.source}</div>` : ''}
+                            ${l.followUpDate ? `<div style="font-size:8px;color:var(--orange);margin-top:2px">🔔 ติดตาม: ${l.followUpDate}</div>` : ''}
+                        </div>
+                    `;
+                }).join('')}
+                ${!leads.length ? '<div style="text-align:center;color:var(--text-secondary);padding:20px;font-size:11px">— ว่าง —</div>' : ''}
+            </div>
+        `;
     }).join('');
 }
 
-// ==================== CALENDAR ====================
+// ==================== R. CALENDAR ====================
 let calendarInstance = null;
+
 function renderCalendar() {
+    if (!hasPerm('calendar')) return;
+    
     const container = document.getElementById('calendarContainer');
     if (!container) return;
+    
     if (calendarInstance) calendarInstance.destroy();
+    
     calendarInstance = new FullCalendar.Calendar(container, {
-        initialView: 'dayGridMonth', locale: 'th',
-        headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth' },
-        events: appointments.map(a => ({ id: a.id, title: `${a.name} - ${a.carName||'นัดดูรถ'}`, start: a.date, backgroundColor: '#c9a84c' })),
+        initialView: 'dayGridMonth',
+        locale: 'th',
+        headerToolbar: {
+            left: 'prev,next today',
+            center: 'title',
+            right: 'dayGridMonth,timeGridWeek'
+        },
+        buttonText: {
+            today: 'วันนี้',
+            month: 'เดือน',
+            week: 'สัปดาห์'
+        },
+        events: appointments.map(a => ({
+            id: String(a.id),
+            title: `👤 ${a.name}${a.carName ? ' - ' + a.carName : ''}`,
+            start: a.date,
+            backgroundColor: '#c9a84c',
+            borderColor: '#c9a84c',
+            textColor: '#000',
+            extendedProps: a
+        })),
+        eventClick: function(info) {
+            const a = info.event.extendedProps;
+            alert(`📅 นัดหมาย\n👤 ${a.name}\n🚗 ${a.carName || '—'}\n📅 ${new Date(a.date).toLocaleDateString('th-TH')}\n📝 ${a.note || '—'}`);
+        },
         dateClick: function(info) {
             if (!hasPerm('calendar')) return;
-            const name = prompt('ชื่อลูกค้า:'); if (!name) return;
-            appointments.push({ id: Date.now(), name, date: info.dateStr, type: 'viewing', note: '' });
+            const name = prompt('ชื่อลูกค้า:');
+            if (!name) return;
+            const carId = prompt('ID รถ (ถ้ามี):', '');
+            const note = prompt('หมายเหตุ:', '');
+            
+            appointments.push({
+                id: Date.now(),
+                name,
+                carId: carId ? parseInt(carId) : null,
+                carName: carId ? (cars.find(c => c.id === parseInt(carId))?.brand + ' ' + cars.find(c => c.id === parseInt(carId))?.name) || '' : '',
+                date: info.dateStr,
+                type: 'viewing',
+                note: note || ''
+            });
+            
             localStorage.setItem('stockCEO_appointments', JSON.stringify(appointments));
-            renderCalendar(); showToast('✅ เพิ่มนัดหมายแล้ว');
+            renderCalendar();
+            showToast('✅ เพิ่มนัดหมายแล้ว', 'success');
         }
     });
+    
     calendarInstance.render();
 }
 
-// ==================== ALERTS ====================
+// ==================== S. ALERTS ====================
 function checkAlerts() {
     const alerts = [];
+    const now = new Date();
+    
     cars.forEach(c => {
+        // Warranty expiry
         if (c.warranty?.end) {
             try {
                 const parts = c.warranty.end.split('/');
-                const endDate = new Date(parseInt(parts[2])-543, parseInt(parts[1])-1, parseInt(parts[0]));
-                const daysLeft = Math.ceil((endDate - new Date()) / (1000*60*60*24));
-                if (daysLeft <= 0) alerts.push({ type: 'danger', msg: `⚠️ Warranty หมดอายุ: ${c.brand} ${c.name}`, carId: c.id });
-                else if (daysLeft <= 30) alerts.push({ type: 'warn', msg: `⏳ Warranty ใกล้หมด: ${c.brand} ${c.name} อีก ${daysLeft} วัน`, carId: c.id });
+                const endDate = new Date(parseInt(parts[2]) - 543, parseInt(parts[1]) - 1, parseInt(parts[0]));
+                const daysLeft = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+                
+                if (daysLeft <= 0) {
+                    alerts.push({
+                        type: 'danger',
+                        icon: '⚠️',
+                        msg: `Warranty หมดอายุแล้ว: ${c.brand} ${c.name} (${c.plate})`,
+                        carId: c.id,
+                        days: Math.abs(daysLeft)
+                    });
+                } else if (daysLeft <= 30) {
+                    alerts.push({
+                        type: 'warning',
+                        icon: '⏳',
+                        msg: `Warranty ใกล้หมดอายุ: ${c.brand} ${c.name} (${c.plate})`,
+                        carId: c.id,
+                        days: daysLeft
+                    });
+                }
             } catch(e) {}
         }
+        
+        // Dead stock
         if (c.status === 'show') {
             const aging = getAgingDays(c);
-            if (aging > 90) alerts.push({ type: 'danger', msg: `📦 Dead Stock ${aging} วัน: ${c.brand} ${c.name}`, carId: c.id });
-            else if (aging > 60) alerts.push({ type: 'warn', msg: `⏰ จอดนาน ${aging} วัน: ${c.brand} ${c.name}`, carId: c.id });
+            if (aging > 90) {
+                alerts.push({
+                    type: 'danger',
+                    icon: '📦',
+                    msg: `Dead Stock ${aging} วัน: ${c.brand} ${c.name} (${c.plate})`,
+                    carId: c.id,
+                    days: aging
+                });
+            } else if (aging > 60) {
+                alerts.push({
+                    type: 'warning',
+                    icon: '⏰',
+                    msg: `จอดนาน ${aging} วัน: ${c.brand} ${c.name} (${c.plate})`,
+                    carId: c.id,
+                    days: aging
+                });
+            }
         }
+    });
+    
+    // Sort by severity
+    alerts.sort((a, b) => {
+        const order = { danger: 0, warning: 1, info: 2 };
+        return (order[a.type] || 99) - (order[b.type] || 99);
     });
     
     const container = document.getElementById('alertsContent');
     if (container) {
         container.innerHTML = alerts.length ? alerts.map(a => `
-            <div style="padding:12px;margin-bottom:8px;background:var(--bg-input);border:1px solid ${a.type==='danger'?'var(--red)':'var(--orange)'};border-radius:8px;cursor:pointer" onclick="openCarDetail(${a.carId})">${a.msg}</div>
-        `).join('') : '<div style="text-align:center;padding:40px;color:var(--text-secondary)">✅ ไม่มีการแจ้งเตือน</div>';
+            <div style="display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:6px;
+                        background:var(--bg-input);border:1px solid ${a.type === 'danger' ? 'var(--red)' : a.type === 'warning' ? 'var(--orange)' : 'var(--blue)'};
+                        border-radius:8px;cursor:pointer;transition:var(--transition)"
+                 onclick="openCarDetail(${a.carId})"
+                 onmouseover="this.style.borderColor='var(--gold)'"
+                 onmouseout="this.style.borderColor='${a.type === 'danger' ? 'var(--red)' : a.type === 'warning' ? 'var(--orange)' : 'var(--blue)'}'">
+                <span style="font-size:18px">${a.icon}</span>
+                <div style="flex:1">
+                    <div style="font-size:11px;font-weight:500">${a.msg}</div>
+                    ${a.days ? `<div style="font-size:9px;color:var(--text-secondary);margin-top:2px">
+                        ${a.type === 'danger' && a.icon === '⚠️' ? `หมดมาแล้ว ${a.days} วัน` : ''}
+                        ${a.type === 'warning' && a.icon === '⏳' ? `เหลืออีก ${a.days} วัน` : ''}
+                        ${a.icon === '📦' || a.icon === '⏰' ? `จอดมา ${a.days} วัน` : ''}
+                    </div>` : ''}
+                </div>
+                <span style="color:var(--text-secondary);font-size:18px">›</span>
+            </div>
+        `).join('') : `
+            <div style="text-align:center;padding:40px;color:var(--text-secondary)">
+                <div style="font-size:36px;margin-bottom:12px">✅</div>
+                <div style="font-weight:600">ไม่มีการแจ้งเตือน</div>
+                <div style="font-size:11px;margin-top:4px">ระบบจะตรวจสอบอัตโนมัติทุกครั้งที่โหลดหน้าเว็บ</div>
+            </div>
+        `;
     }
 }
 
-// ==================== LINE NOTIFY ====================
+// ==================== T. LINE NOTIFY ====================
 async function sendLineNotify(msg) {
     if (!lineNotifyToken) return;
-    try { await fetch('https://notify-api.line.me/api/notify', { method: 'POST', headers: { 'Authorization': `Bearer ${lineNotifyToken}` }, body: `message=${encodeURIComponent(msg)}` }); } catch(e) {}
+    try {
+        await fetch('https://notify-api.line.me/api/notify', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${lineNotifyToken}`,
+                'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            body: `message=${encodeURIComponent(msg)}`
+        });
+    } catch(e) {
+        console.log('LINE Notify error:', e);
+    }
 }
 
-// ==================== INIT ====================
+// ==================== U. EXPORT EXCEL ====================
+function exportToExcel() {
+    if (!hasPerm('export')) {
+        showToast('❌ ไม่มีสิทธิ์ Export', 'error');
+        return;
+    }
+    
+    const data = cars.map(c => ({
+        'ID': c.id,
+        'ยี่ห้อ': c.brand,
+        'รุ่น': c.name,
+        'ปี': c.year,
+        'สี': c.color,
+        'ทะเบียน': c.plate,
+        'VIN': c.vin || '',
+        'เลขไมล์': c.mileage,
+        'ราคา SP': c.sp,
+        'ราคา Net': c.net,
+        'สถานะ': c.status === 'show' ? 'จอดโชว์' : c.status === 'sold' ? 'ขายแล้ว' : c.status === 'hold' ? 'จอง' : 'เก็บถาวร',
+        'สถานที่': c.location || '',
+        'Tags': (c.tags || []).join(', '),
+        'วันที่เพิ่ม': c.dateAdded || '',
+        'พนักงานขาย': c.salesPerson || '',
+        ...(hasPerm('commission') ? {
+            'ต้นทุนซื้อ': calculateCost(c).purchase,
+            'ค่าซ่อม': calculateCost(c).repair,
+            'ค่าอื่นๆ': calculateCost(c).other,
+            'ต้นทุนรวม': calculateCost(c).total,
+            'กำไร': calculateProfit(c).profit,
+            'Margin %': calculateProfit(c).margin.toFixed(1),
+            'คอมมิชชั่น': calculateProfit(c).commission
+        } : {})
+    }));
+    
+    const ws = XLSX.utils.json_to_sheet(data);
+    
+    // Set column widths
+    ws['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 20 }, { wch: 6 }, { wch: 10 },
+        { wch: 12 }, { wch: 18 }, { wch: 12 }, { wch: 14 }, { wch: 14 },
+        { wch: 10 }, { wch: 15 }, { wch: 15 }, { wch: 12 }, { wch: 15 }
+    ];
+    
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Stock CEO');
+    XLSX.writeFile(wb, `StockCEO_${new Date().toISOString().split('T')[0]}.xlsx`);
+    showToast('📊 Export Excel สำเร็จ!', 'success');
+}
+
+// ==================== V. HELPERS ====================
+function setFilter(brand) {
+    activeFilter = brand;
+    activeStatusFilter = '';
+    renderFilters();
+    renderGrid();
+}
+
+function filterByStatus(status) {
+    activeStatusFilter = status === 'all' ? '' : status;
+    activeFilter = 'all';
+    renderFilters();
+    renderGrid();
+}
+
+function filterByTag(tag) {
+    activeTagFilter = tag;
+    renderTagFilters();
+    renderGrid();
+}
+
+function clearAllFilters() {
+    activeFilter = 'all';
+    activeStatusFilter = '';
+    activeTagFilter = '';
+    document.getElementById('searchInput').value = '';
+    renderFilters();
+    renderTagFilters();
+    renderGrid();
+}
+
+function handleSort() {
+    currentSort = document.getElementById('sortSelect').value;
+    renderGrid();
+}
+
+function debounceFilter() {
+    clearTimeout(window._filterTimeout);
+    window._filterTimeout = setTimeout(renderGrid, 200);
+}
+
+function handleLogoClick() {
+    if (!hasPerm('settings')) {
+        showToast('🔒 กรุณาเข้าสู่ระบบเพื่อเปลี่ยนชื่อร้าน', 'info');
+        return;
+    }
+    const name = prompt('ชื่อร้านใหม่:', siteSettings.name);
+    if (name && name.trim()) {
+        siteSettings.name = name.trim();
+        saveData();
+        renderAll();
+        showToast('✅ เปลี่ยนชื่อร้านแล้ว', 'success');
+    }
+}
+
+// ==================== W. TAB SWITCHING ====================
+function switchTab(tab) {
+    currentTab = tab;
+    
+    document.querySelectorAll('.panel').forEach(p => p.style.display = 'none');
+    document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+    
+    const panel = document.getElementById(tab + 'Panel');
+    const navTab = document.querySelector(`[data-tab="${tab}"]`);
+    
+    if (panel) panel.style.display = 'block';
+    if (navTab) navTab.classList.add('active');
+    
+    // Update breadcrumb
+    const breadcrumbCurrent = document.getElementById('breadcrumbCurrent');
+    if (breadcrumbCurrent) breadcrumbCurrent.textContent = ' / ' + getCurrentTabLabel();
+    
+    // Render content
+    if (tab === 'compare') renderCompare();
+    if (tab === 'report') renderReport();
+    if (tab === 'pipeline') renderPipeline();
+    if (tab === 'calendar') renderCalendar();
+    if (tab === 'alerts') checkAlerts();
+    
+    // Scroll to top
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// ==================== X. INITIALIZATION ====================
 function init() {
+    console.log('🚀 Stock CEO Ultimate - Initializing...');
+    
     loadData();
+    updateAuthUI();
     renderNavTabs();
     renderAll();
-    updateAuthUI();
     
+    // Load compare from URL
     const params = new URLSearchParams(window.location.search);
     const compareParam = params.get('compare');
     if (compareParam) {
         compareIds = compareParam.split(',').map(Number).filter(id => cars.find(c => c.id === id)).slice(0, MAX_COMPARE);
         updateCompareUI();
-        if (compareIds.length) switchTab('compare');
+        if (compareIds.length) {
+            setTimeout(() => switchTab('compare'), 500);
+        }
     }
     
+    // Default tab
     switchTab('stock');
+    
+    // Keyboard shortcuts
+    document.addEventListener('keydown', function(e) {
+        if (e.ctrlKey || e.metaKey) {
+            switch(e.key) {
+                case 'k':
+                    e.preventDefault();
+                    document.getElementById('searchInput').focus();
+                    break;
+                case 'n':
+                    e.preventDefault();
+                    if (hasPerm('edit')) openAddCarModal();
+                    break;
+                case 'e':
+                    e.preventDefault();
+                    if (hasPerm('export')) exportToExcel();
+                    break;
+            }
+        }
+        // Escape to close modals
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.modal-overlay.open').forEach(m => {
+                if (m.id !== 'carDetailModal' || !m.querySelector('[onclick]')) {
+                    m.classList.remove('open');
+                }
+            });
+            document.querySelectorAll('.user-dropdown').forEach(el => el.remove());
+        }
+    });
+    
+    console.log('✅ Stock CEO Ultimate Ready!');
+    console.log(`   📦 Cars: ${cars.length}`);
+    console.log(`   🔐 Role: ${userRole}`);
+    console.log(`   ☁️ Firebase: ${firebaseReady ? 'Connected' : 'Offline'}`);
 }
 
+// Start app
 document.addEventListener('DOMContentLoaded', init);
+
+// Handle window errors gracefully
+window.addEventListener('error', function(e) {
+    console.error('Global error:', e.error);
+    // Don't show toast for every error, just log it
+});
+
+// Handle unhandled promise rejections
+window.addEventListener('unhandledrejection', function(e) {
+    console.error('Unhandled rejection:', e.reason);
+});
 </script>
+
 </body>
 </html>
