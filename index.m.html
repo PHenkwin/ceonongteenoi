@@ -1,0 +1,1156 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stock CEO - ระบบจัดการสต็อกรถ</title>
+    
+    <!-- External Libraries -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Sarabun', sans-serif; }
+        .modal { display: none; }
+        .modal.active { display: flex; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        .car-card:hover { transform: translateY(-2px); box-shadow: 0 10px 25px rgba(0,0,0,0.1); }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-800">
+
+    <!-- Header -->
+    <header class="bg-white shadow-md sticky top-0 z-50">
+        <div class="container mx-auto px-4 py-3">
+            <div class="flex flex-wrap items-center justify-between gap-4">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold text-xl">S</div>
+                    <h1 class="text-xl font-bold text-gray-800">Stock CEO</h1>
+                    <span id="syncStatus" class="text-sm text-gray-500 flex items-center gap-1">
+                        <span class="w-2 h-2 bg-gray-400 rounded-full"></span>
+                        ไม่ได้เชื่อมต่อ
+                    </span>
+                </div>
+                
+                <div class="flex flex-wrap items-center gap-2">
+                    <button onclick="openModal('pinModal')" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">🔑 PIN</button>
+                    <button onclick="toggleViewOnly()" id="viewOnlyBtn" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">👁️ โหมดดูอย่างเดียว</button>
+                    <button onclick="openModal('authModal')" id="authBtn" class="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm transition">🔐 เข้าสู่ระบบ</button>
+                    <button onclick="toggleTheme()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">🌓</button>
+                    <button onclick="toggleFontSize()" class="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">🔲</button>
+                    <select onchange="changeFontSize(this.value)" class="px-3 py-1.5 bg-gray-100 rounded-lg text-sm">
+                        <option value="text-sm">⬜ เล็ก</option>                        <option value="text-base" selected>🟫 กลาง</option>
+                        <option value="text-lg">⬛ ใหญ่</option>
+                    </select>
+                    <button onclick="openModal('userModal')" class="admin-only hidden px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">👥 จัดการผู้ใช้</button>
+                    <button onclick="openModal('dataModal')" class="admin-only hidden px-3 py-1.5 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm transition">💾 จัดการข้อมูล</button>
+                    <button onclick="exportAllExcel()" class="px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm transition">📊 Excel</button>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation Tabs -->
+    <nav class="bg-white border-b">
+        <div class="container mx-auto px-4">
+            <div class="flex gap-1 overflow-x-auto">
+                <button onclick="switchTab('stock')" class="tab-btn active px-4 py-3 font-medium border-b-2 border-blue-600 text-blue-600 whitespace-nowrap">📦 สต็อกรถ</button>
+                <button onclick="switchTab('dashboard')" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">📊 รายงาน</button>
+                <button onclick="switchTab('compare')" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">⚖️ เปรียบเทียบ</button>
+                <button onclick="switchTab('notifications')" class="tab-btn px-4 py-3 font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">🔔 การแจ้งเตือน</button>
+                <button onclick="openModal('settingsModal')" class="admin-only hidden px-4 py-3 font-medium border-b-2 border-transparent text-gray-600 hover:text-gray-800 whitespace-nowrap">⚙️ ตั้งค่า</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="container mx-auto px-4 py-6">
+        
+        <!-- Stock Tab -->
+        <div id="stockTab" class="tab-content active fade-in">
+            <div class="flex flex-wrap gap-3 mb-6">
+                <input type="text" id="searchInput" placeholder="🔍 ค้นหารุ่น, ยี่ห้อ, VIN..." 
+                    class="flex-1 min-w-64 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                <select id="sortSelect" onchange="renderCars()" 
+                    class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    <option value="nameAsc">🔤 ชื่อ ก-ฮ</option>
+                    <option value="nameDesc">🔤 ชื่อ ฮ-ก</option>
+                    <option value="priceAsc">💰 ต่ำ→สูง</option>
+                    <option value="priceDesc">💰 สูง→ต่ำ</option>
+                    <option value="dateDesc">📅 ใหม่→เก่า</option>
+                    <option value="dateAsc">📅 เก่า→ใหม่</option>
+                </select>
+                <button onclick="openModal('carModal')" class="admin-only hidden px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">＋ เพิ่มรถ</button>
+            </div>
+            
+            <div class="mb-4 text-gray-600">แสดง <span id="carCount" class="font-semibold">0</span> รายการ</div>
+            
+            <div id="carGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <!-- Cars will be rendered here -->
+            </div>
+                        <div id="emptyMsg" class="hidden text-center py-12 text-gray-500">
+                <div class="text-6xl mb-4">🚗</div>
+                <p class="text-lg">ไม่มีรายการรถ</p>
+            </div>
+        </div>
+
+        <!-- Dashboard Tab -->
+        <div id="dashboardTab" class="tab-content fade-in">
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-gray-500 text-sm mb-1">🚗 รถทั้งหมด</div>
+                    <div id="dashTotalCars" class="text-3xl font-bold text-blue-600">0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-gray-500 text-sm mb-1">💰 มูลค่าสต็อก</div>
+                    <div id="dashTotalValue" class="text-3xl font-bold text-green-600">0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-gray-500 text-sm mb-1">📈 กำไรเฉลี่ย</div>
+                    <div id="dashAvgProfit" class="text-3xl font-bold text-purple-600">0</div>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <div class="text-gray-500 text-sm mb-1">👥 ลูกค้า</div>
+                    <div id="dashTotalCustomers" class="text-3xl font-bold text-orange-600">0</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">📊 ยอดขายรายเดือน</h3>
+                    <canvas id="salesChart"></canvas>
+                </div>
+                <div class="bg-white p-6 rounded-xl shadow-md">
+                    <h3 class="text-lg font-semibold mb-4">📅 รถค้างตามอายุ</h3>
+                    <canvas id="ageChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Compare Tab -->
+        <div id="compareTab" class="tab-content fade-in">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">⚖️ เปรียบเทียบรถ</h2>
+                <p class="text-gray-600 mb-6">กดปุ่ม ⚖️ บนการ์ดรถเพื่อเลือก (สูงสุด 3 คัน)</p>
+                
+                <div id="compareList" class="overflow-x-auto">
+                    <div class="text-center text-gray-500 py-8">ยังไม่มีรถที่เลือกเปรียบเทียบ</div>
+                </div>
+                
+                <button onclick="clearCompare()" class="mt-4 px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition">✕ ล้าง</button>            </div>
+        </div>
+
+        <!-- Notifications Tab -->
+        <div id="notificationsTab" class="tab-content fade-in">
+            <div class="bg-white rounded-xl shadow-md p-6">
+                <h2 class="text-2xl font-bold mb-4">🔔 การแจ้งเตือนอัจฉริยะ</h2>
+                <p class="text-gray-600 mb-6">💡 ระบบจะตรวจสอบอัตโนมัติเมื่อโหลดหน้าเว็บ</p>
+                
+                <div id="alertContainer" class="space-y-3">
+                    <div class="text-center text-gray-500 py-8">✅ ไม่มีแจ้งเตือนในขณะนี้</div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-white border-t mt-12">
+        <div class="container mx-auto px-4 py-6">
+            <div class="flex flex-col md:flex-row justify-between items-center gap-4">
+                <div class="text-gray-600">
+                    <p>📞 ติดต่อสอบถามข้อมูลเพิ่มเติม</p>
+                </div>
+                <div class="flex gap-4">
+                    <a href="tel:0649246689" class="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                        📱 โทรศัพท์ 064-924-6689
+                    </a>
+                    <a href="https://line.me/ti/p/~ocshop518" target="_blank" class="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition">
+                        💚 Line ID @ocshop518
+                    </a>
+                </div>
+            </div>
+        </div>
+    </footer>
+
+    <!-- Modals -->
+    
+    <!-- Car Modal -->
+    <div id="carModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <h2 id="carModalTitle" class="text-2xl font-bold mb-6">＋ เพิ่มรถใหม่</h2>
+                
+                <input type="hidden" id="carId">
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อรุ่น / Model *</label>
+                        <input type="text" id="carModel" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ยี่ห้อ / Brand *</label>
+                        <input type="text" id="carBrand" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ปี ค.ศ.</label>
+                        <input type="number" id="carYear" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">สี</label>
+                        <input type="text" id="carColor" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">เลขตัวถัง (VIN)</label>
+                        <input type="text" id="carVIN" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ทะเบียน</label>
+                        <input type="text" id="carPlate" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ไมล์ (กม.)</label>
+                        <input type="number" id="carMile" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">สถานที่จอด</label>
+                        <input type="text" id="carLoc" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ราคาพิเศษ (SP)</label>
+                        <input type="number" id="carSP" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ราคา Net (SM)</label>
+                        <input type="number" id="carSM" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">360° View</label>
+                        <select id="car360" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="false">ไม่มี</option>
+                            <option value="true">มี</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">✓ หมายเหตุ</label>                    <textarea id="carNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"></textarea>
+                </div>
+                
+                <div class="border-t pt-4 mb-4">
+                    <h3 class="text-lg font-semibold mb-3">💰 ต้นทุน & กำไร</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ราคาซื้อเข้า</label>
+                            <input type="number" id="costBuy" oninput="calcCost()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ค่าซ่อม/ตกแต่ง</label>
+                            <input type="number" id="costFix" oninput="calcCost()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">ค่าดำเนินการอื่นๆ</label>
+                            <input type="number" id="costOther" oninput="calcCost()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                    <div class="mt-3">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ต้นทุนรวม (คำนวณอัตโนมัติ)</label>
+                        <input type="number" id="costTotal" readonly class="w-full px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg font-semibold">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">รูปภาพ</label>
+                    <input type="file" id="carImgInput" multiple accept="image/*" onchange="previewImages(this)" 
+                        class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    <div id="imgPreviewBox" class="flex gap-2 mt-2 flex-wrap"></div>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeModal('carModal')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ยกเลิก</button>
+                    <button onclick="saveCar()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">เพิ่มรถ</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Auth Modal -->
+    <div id="authModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <div id="loginForm">
+                <h2 class="text-2xl font-bold mb-4">🔐 เข้าสู่ระบบ</h2>
+                <p class="text-gray-600 mb-4">เข้าสู่ระบบเพื่อซิงค์ข้อมูลข้ามเครื่อง</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+                        <input type="email" id="loginEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg">                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน</label>
+                        <input type="password" id="loginPass" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <button onclick="login()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">เข้าสู่ระบบ</button>
+                </div>
+                <p class="mt-4 text-center text-sm">ยังไม่มีบัญชี? <a href="#" onclick="toggleAuthMode()" class="text-blue-600 hover:underline">สมัครสมาชิก</a></p>
+            </div>
+            
+            <div id="registerForm" class="hidden">
+                <h2 class="text-2xl font-bold mb-4">📝 สมัครสมาชิก</h2>
+                <p class="text-gray-600 mb-4">สร้างบัญชีเพื่อใช้งานระบบ</p>
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">อีเมล</label>
+                        <input type="email" id="regEmail" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">รหัสผ่าน (6 หลักขึ้นไป)</label>
+                        <input type="password" id="regPass" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <button onclick="register()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">สมัคร</button>
+                </div>
+                <p class="mt-4 text-center text-sm"><a href="#" onclick="toggleAuthMode()" class="text-blue-600 hover:underline">ยกเลิก</a></p>
+            </div>
+            
+            <button onclick="closeModal('authModal')" class="mt-4 w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ปิด</button>
+        </div>
+    </div>
+
+    <!-- PIN Modal -->
+    <div id="pinModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 text-center">
+            <h2 class="text-2xl font-bold mb-2">🔐 ใส่รหัสผ่าน</h2>
+            <p class="text-gray-600 mb-6">กรอก PIN 4 หลัก</p>
+            
+            <div id="pinDisplay" class="text-3xl font-bold mb-6 tracking-widest">_ _ _ _</div>
+            
+            <div class="grid grid-cols-3 gap-3 mb-6">
+                <button onclick="enterPin('1')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">1</button>
+                <button onclick="enterPin('2')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">2</button>
+                <button onclick="enterPin('3')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">3</button>
+                <button onclick="enterPin('4')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">4</button>
+                <button onclick="enterPin('5')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">5</button>
+                <button onclick="enterPin('6')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">6</button>
+                <button onclick="enterPin('7')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">7</button>
+                <button onclick="enterPin('8')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">8</button>
+                <button onclick="enterPin('9')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">9</button>
+                <button onclick="clearPin()" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-sm">ล้าง</button>                <button onclick="enterPin('0')" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl font-semibold">0</button>
+                <button onclick="backPin()" class="p-4 bg-gray-100 hover:bg-gray-200 rounded-lg text-xl">⌫</button>
+            </div>
+            
+            <div class="flex gap-3">
+                <button onclick="verifyPin()" class="flex-1 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">ยืนยัน</button>
+                <button onclick="closeModal('pinModal')" class="flex-1 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ยกเลิก</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loan Modal -->
+    <div id="loanModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">📄 ใบเสนอราคา + คำนวณผ่อน</h2>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อลูกค้า</label>
+                        <input type="text" id="loanCustName" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">เบอร์โทร</label>
+                        <input type="text" id="loanCustPhone" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="mb-4">
+                    <label class="block text-sm font-medium text-gray-700 mb-1">🏦 เลือกสถาบันการเงิน</label>
+                    <select id="loanBank" onchange="calcLoan()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        <option value="bank1">ธนาคาร A (6.5%)</option>
+                        <option value="bank2">ธนาคาร B (7.2%)</option>
+                        <option value="bank3">ไฟแนนซ์ C (8.5%)</option>
+                        <option value="bank4">ลิสซิ่ง D (9.0%)</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ดอกเบี้ยต่อปี (%)</label>
+                        <input type="number" id="loanRate" step="0.01" oninput="calcLoan()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">💰 เงินดาวน์ (%)</label>
+                        <select id="loanDown" onchange="calcLoan()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                            <option value="0">0%</option>
+                            <option value="15">15%</option>
+                            <option value="50">50%</option>
+                        </select>                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">📅 ระยะเวลาผ่อน (เดือน)</label>
+                        <input type="number" id="loanTerm" oninput="calcLoan()" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="bg-blue-50 p-4 rounded-lg mb-4">
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div>ราคารถ: <span id="outCarPrice" class="font-semibold">—</span></div>
+                        <div>เงินดาวน์: <span id="outDown" class="font-semibold">—</span></div>
+                        <div>ยอดกู้: <span id="outLoan" class="font-semibold">—</span></div>
+                        <div>ดอกเบี้ยรวม: <span id="outInterest" class="font-semibold">—</span></div>
+                        <div>รวมจ่ายทั้งหมด: <span id="outTotal" class="font-semibold">—</span></div>
+                        <div>Effective Rate: <span id="outEff" class="font-semibold">—</span></div>
+                    </div>
+                    <div class="mt-3 pt-3 border-t border-blue-200">
+                        <div class="text-lg">💸 ผ่อนรายเดือน: <span id="outMonthly" class="font-bold text-blue-600 text-xl">—</span></div>
+                    </div>
+                </div>
+                
+                <div class="flex flex-wrap gap-2 mb-4">
+                    <button onclick="addLoanPlan()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">➕ เพิ่มแผน</button>
+                    <button onclick="exportLoanExcel()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition">📥 Export Excel</button>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button onclick="copyLoan()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">📋 คัดลอก</button>
+                    <button onclick="printLoan()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">🖨️ พิมพ์/PDF</button>
+                    <button onclick="closeModal('loanModal')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ปิด</button>
+                </div>
+                
+                <p class="mt-4 text-sm text-gray-500">⚠️ การคำนวณเป็นเพียงการประมาณ</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- QR Modal -->
+    <div id="qrModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-sm w-full p-6 text-center">
+            <h2 class="text-2xl font-bold mb-4">📱 QR Code</h2>
+            <div id="qrCode" class="flex justify-center mb-4"></div>
+            <button onclick="closeModal('qrModal')" class="w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ปิด</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">                <h2 class="text-2xl font-bold mb-6">🎨 ตั้งค่าโลโก้และชื่อ</h2>
+                <p class="text-gray-600 mb-4">แก้ไขชื่อเว็บและโลโก้ได้ตามต้องการ</p>
+                
+                <div class="space-y-4 mb-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">ชื่อเว็บ / ชื่อร้าน</label>
+                        <input type="text" id="cfgName" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">โลโก้ URL</label>
+                        <input type="text" id="cfgLogo" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                </div>
+                
+                <div class="flex gap-3 justify-end">
+                    <button onclick="closeModal('settingsModal')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ยกเลิก</button>
+                    <button onclick="saveSettings()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">บันทึก</button>
+                </div>
+                
+                <div class="border-t pt-6 mt-6">
+                    <h3 class="text-xl font-bold mb-4">🛡️ ข้อมูลการรับประกัน</h3>
+                    <p class="text-gray-600 mb-4">ความคุ้มครอง (Warranty)</p>
+                    
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">วันเริ่ม Warranty</label>
+                            <input type="date" id="wStart" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">วันสิ้นสุด Warranty</label>
+                            <input type="date" id="wEnd" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">วันเริ่ม BSI</label>
+                            <input type="date" id="bStart" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">วันสิ้นสุด BSI</label>
+                            <input type="date" id="bEnd" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-4">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">หมายเหตุเพิ่มเติม</label>
+                        <textarea id="wNote" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-lg"></textarea>
+                    </div>
+                    
+                    <div class="flex gap-3 justify-end">
+                        <button onclick="closeModal('settingsModal')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ยกเลิก</button>
+                        <button onclick="saveWarranty()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">บันทึก</button>                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Data Modal -->
+    <div id="dataModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <h2 class="text-2xl font-bold mb-6">💾 จัดการข้อมูล</h2>
+                <p class="text-gray-600 mb-4">Backup, Restore, Import</p>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                    <button onclick="backupJSON()" class="p-4 bg-blue-50 hover:bg-blue-100 rounded-lg text-left transition">
+                        <div class="font-semibold">📤 Backup เป็นไฟล์ JSON</div>
+                    </button>
+                    <label class="p-4 bg-green-50 hover:bg-green-100 rounded-lg text-left transition cursor-pointer">
+                        <div class="font-semibold">📥 Restore จากไฟล์ JSON</div>
+                        <input type="file" accept=".json" onchange="restoreJSON(this)" class="hidden">
+                    </label>
+                    <label class="p-4 bg-purple-50 hover:bg-purple-100 rounded-lg text-left transition cursor-pointer">
+                        <div class="font-semibold">📦 Import จาก Excel/CSV</div>
+                        <input type="file" accept=".xlsx,.csv" onchange="importExcel(this)" class="hidden">
+                    </label>
+                    <button onclick="clearAll()" class="p-4 bg-red-50 hover:bg-red-100 rounded-lg text-left transition text-red-600">
+                        <div class="font-semibold">🗑️ ล้างข้อมูลทั้งหมด</div>
+                    </button>
+                </div>
+                
+                <div class="border-t pt-6">
+                    <h3 class="text-xl font-bold mb-4">☁️ Auto-Sync — Firebase</h3>
+                    <p class="text-gray-600 mb-4">ซิงค์ข้อมูลข้ามเครื่องแบบ Real-time</p>
+                    
+                    <div id="firebaseStatus" class="mb-4 p-3 bg-gray-100 rounded-lg hidden">
+                        <span class="text-green-600">🟢 เชื่อมต่อแล้ว</span>
+                        <div class="text-sm text-gray-600">Project: <span id="fbProjectName">-</span> — Collection: <span id="fbCollectionName">-</span></div>
+                        <div class="text-sm text-gray-500 mt-1">✓ ข้อมูลซิงค์อัตโนมัติ</div>
+                    </div>
+                    
+                    <div class="space-y-4 mb-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Firebase Config (JSON)</label>
+                            <textarea id="fbConfig" rows="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm" placeholder='{"apiKey":"..."}'></textarea>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Collection Name</label>
+                            <input type="text" id="fbCollection" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                    </div>                    
+                    <div class="bg-blue-50 p-4 rounded-lg mb-4 text-sm">
+                        <p class="font-semibold mb-2">🔌 ยกเลิก</p>
+                        <ol class="list-decimal list-inside space-y-1 text-gray-600">
+                            <li>ไปที่ <a href="https://console.firebase.google.com" target="_blank" class="text-blue-600 underline">Firebase Console</a></li>
+                            <li>สร้าง Project → Realtime Database → Test Mode</li>
+                            <li>⚙️ Settings → Copy firebaseConfig</li>
+                        </ol>
+                    </div>
+                    
+                    <div class="flex gap-3 justify-end">
+                        <button onclick="closeModal('dataModal')" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ปิด</button>
+                        <button onclick="connectFirebase()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">🔗 เชื่อมต่อ</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Modal -->
+    <div id="userModal" class="modal fixed inset-0 bg-black bg-opacity-50 z-50 items-center justify-center p-4">
+        <div class="bg-white rounded-xl max-w-md w-full p-6">
+            <h2 class="text-2xl font-bold mb-2">🔧 เปลี่ยน PIN</h2>
+            <p class="text-gray-600 mb-4">👥 จัดการสิทธิ์ผู้ใช้</p>
+            <p class="text-sm text-gray-500 mb-4">เฉพาะ Admin เท่านั้นที่เปลี่ยน Role ได้</p>
+            
+            <div class="space-y-4">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">PIN ปัจจุบัน</label>
+                    <input type="password" id="pinOld" maxlength="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">PIN ใหม่</label>
+                    <input type="password" id="pinNew" maxlength="4" class="w-full px-3 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <button onclick="changePIN()" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition">เปลี่ยน PIN</button>
+            </div>
+            
+            <button onclick="closeModal('userModal')" class="mt-4 w-full py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">ปิด</button>
+        </div>
+    </div>
+
+   <script>
+    // State Management
+    let state = {
+        cars: [], customers: [], loanPlans: [], users: [], compareList: [],
+        currentUser: null,
+        settings: { name: 'Stock CEO', logo: '', wStart: '', wEnd: '', bStart: '', bEnd: '', wNote: '', pin: '0000' },
+        ui: { theme: 'light', fontSize: 'text-base', viewOnly: false },
+        firebase: { connected: false, config: null, project: '', collection: '' }
+    };
+    let pinInput = '', currentLoanCarId = null, charts = {};
+
+    // ✅ รอให้ DOM โหลดเสร็จก่อน
+    document.addEventListener('DOMContentLoaded', function() {
+        init();
+        setupEventListeners();
+    });
+
+    function setupEventListeners() {
+        const searchInput = document.getElementById('searchInput');
+        if (searchInput) searchInput.addEventListener('input', renderCars);
+        
+        const sortSelect = document.getElementById('sortSelect');
+        if (sortSelect) sortSelect.addEventListener('change', renderCars);
+        
+        const authBtn = document.getElementById('authBtn');
+        if (authBtn && !state.currentUser) {
+            authBtn.onclick = () => openModal('authModal');
+        }
+    }
+
+    function init() {
+        try {
+            const saved = localStorage.getItem('stockCEO');
+            if (saved) Object.assign(state, JSON.parse(saved));
+            
+            if (!state.users.length) {
+                state.users.push({ email: 'admin@stockceo.com', pass: 'admin123', role: 'admin', pin: '0000' });
+            }
+            
+            applyUI();
+            renderCars();
+            updateDashboard();
+            checkNotifications();
+        } catch (e) {
+            console.error('Init error:', e);
+        }
+    }
+
+    function saveState() {
+        try {            localStorage.setItem('stockCEO', JSON.stringify(state));
+            if (state.firebase.connected) syncToFirebase();
+        } catch (e) {
+            console.error('Save error:', e);
+        }
+    }
+
+    // UI Functions
+    function applyUI() {
+        const nameEl = document.getElementById('siteName');
+        if (nameEl) nameEl.textContent = state.settings.name;
+        
+        const isAdmin = state.currentUser?.role === 'admin';
+        document.querySelectorAll('.admin-only').forEach(el => {
+            el.classList.toggle('hidden', !isAdmin);
+        });
+        
+        const authBtn = document.getElementById('authBtn');
+        if (authBtn) {
+            if (state.currentUser) {
+                authBtn.textContent = '🔓 ออกจากระบบ';
+                authBtn.onclick = logout;
+            } else {
+                authBtn.textContent = '🔐 เข้าสู่ระบบ';
+                authBtn.onclick = () => openModal('authModal');
+            }
+        }
+        
+        const viewBtn = document.getElementById('viewOnlyBtn');
+        if (viewBtn) viewBtn.textContent = state.ui.viewOnly ? '👁️ โหมดดูอย่างเดียว' : '✏️ แก้ไขได้';
+    }
+
+    function toggleTheme() {
+        state.ui.theme = state.ui.theme === 'light' ? 'dark' : 'light';
+        document.documentElement.classList.toggle('dark', state.ui.theme === 'dark');
+        saveState();
+    }
+
+    function toggleFontSize() {
+        const sizes = ['text-sm', 'text-base', 'text-lg'];
+        const idx = sizes.indexOf(state.ui.fontSize);
+        state.ui.fontSize = sizes[(idx + 1) % sizes.length];
+        updateFontSizeClass();
+    }
+
+    function changeFontSize(size) {
+        state.ui.fontSize = size;
+        updateFontSizeClass();
+    }
+    function updateFontSizeClass() {
+        document.body.classList.remove('text-sm', 'text-base', 'text-lg');
+        document.body.classList.add(state.ui.fontSize);
+        saveState();
+    }
+
+    function toggleViewOnly() {
+        state.ui.viewOnly = !state.ui.viewOnly;
+        applyUI();
+        saveState();
+    }
+
+    // ✅ แก้ไข: รับ event เป็นพารามิเตอร์
+    function switchTab(tabName, e) {
+        if (e) e.preventDefault();
+        
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.classList.remove('active', 'border-blue-600', 'text-blue-600');
+            btn.classList.add('border-transparent', 'text-gray-600');
+        });
+        
+        // หาปุ่มที่ถูกคลิก
+        const clickedBtn = event?.target?.closest('.tab-btn');
+        if (clickedBtn) {
+            clickedBtn.classList.add('active', 'border-blue-600', 'text-blue-600');
+            clickedBtn.classList.remove('border-transparent', 'text-gray-600');
+        }
+        
+        document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+        const target = document.getElementById(tabName + 'Tab');
+        if (target) target.classList.add('active');
+        
+        if (tabName === 'dashboard') updateDashboard();
+    }
+
+    // Modal Functions
+    function openModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.add('active');
+    }
+
+    function closeModal(modalId) {
+        const modal = document.getElementById(modalId);
+        if (modal) modal.classList.remove('active');
+    }
+
+    // Close modal when clicking outside
+    document.addEventListener('click', function(e) {
+        document.querySelectorAll('.modal.active').forEach(modal => {
+            if (e.target === modal) closeModal(modal.id);        });
+    });
+
+    // Car Functions
+    function calcCost() {
+        const buy = parseFloat(document.getElementById('costBuy')?.value) || 0;
+        const fix = parseFloat(document.getElementById('costFix')?.value) || 0;
+        const other = parseFloat(document.getElementById('costOther')?.value) || 0;
+        const totalEl = document.getElementById('costTotal');
+        if (totalEl) totalEl.value = buy + fix + other;
+    }
+
+    function previewImages(input) {
+        const preview = document.getElementById('imgPreviewBox');
+        if (!preview || !input.files) return;
+        preview.innerHTML = '';
+        
+        Array.from(input.files).slice(0, 5).forEach(file => {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = document.createElement('img');
+                img.src = e.target.result;
+                img.className = 'w-20 h-20 object-cover rounded-lg border';
+                preview.appendChild(img);
+            };
+            reader.readAsDataURL(file);
+        });
+    }
+
+    function openCarModal(carId = null) {
+        if (state.ui.viewOnly) { alert('โหมดดูอย่างเดียวไม่สามารถแก้ไขได้'); return; }
+        
+        const idEl = document.getElementById('carId');
+        if (idEl) idEl.value = carId || '';
+        
+        if (carId) {
+            const car = state.cars.find(c => c.id === carId);
+            if (car) {
+                const titleEl = document.getElementById('carModalTitle');
+                if (titleEl) titleEl.textContent = '✏️ แก้ไขรถ';
+                
+                const fields = ['carModel','carBrand','carYear','carColor','carVIN','carPlate','carMile','carLoc','carSP','carSM','carNote','costBuy','costFix','costOther','costTotal'];
+                fields.forEach(f => { const el = document.getElementById(f); if (el) el.value = car[f] || ''; });
+                
+                const view360El = document.getElementById('car360');
+                if (view360El) view360El.value = car.view360 || 'false';
+            }
+        } else {
+            const titleEl = document.getElementById('carModalTitle');
+            if (titleEl) titleEl.textContent = '＋ เพิ่มรถใหม่';            document.querySelectorAll('#carModal input, #carModal textarea').forEach(el => {
+                if (el.type !== 'button' && el.id !== 'carId') el.value = '';
+            });
+        }
+        openModal('carModal');
+    }
+
+    function saveCar() {
+        const carId = document.getElementById('carId')?.value;
+        const carData = {
+            id: carId || Date.now().toString(),
+            model: document.getElementById('carModel')?.value || '',
+            brand: document.getElementById('carBrand')?.value || '',
+            year: document.getElementById('carYear')?.value || '',
+            color: document.getElementById('carColor')?.value || '',
+            vin: document.getElementById('carVIN')?.value || '',
+            plate: document.getElementById('carPlate')?.value || '',
+            mile: document.getElementById('carMile')?.value || '',
+            loc: document.getElementById('carLoc')?.value || '',
+            sp: parseFloat(document.getElementById('carSP')?.value) || 0,
+            sm: parseFloat(document.getElementById('carSM')?.value) || 0,
+            view360: document.getElementById('car360')?.value === 'true',
+            note: document.getElementById('carNote')?.value || '',
+            costBuy: parseFloat(document.getElementById('costBuy')?.value) || 0,
+            costFix: parseFloat(document.getElementById('costFix')?.value) || 0,
+            costOther: parseFloat(document.getElementById('costOther')?.value) || 0,
+            costTotal: parseFloat(document.getElementById('costTotal')?.value) || 0,
+            date: new Date().toISOString()
+        };
+        
+        if (carId) {
+            const idx = state.cars.findIndex(c => c.id === carId);
+            if (idx !== -1) state.cars[idx] = carData;
+        } else {
+            state.cars.push(carData);
+        }
+        
+        saveState();
+        closeModal('carModal');
+        renderCars();
+        updateDashboard();
+    }
+
+    function renderCars() {
+        const grid = document.getElementById('carGrid');
+        const emptyMsg = document.getElementById('emptyMsg');
+        const countEl = document.getElementById('carCount');
+        if (!grid) return;
+        
+        const searchTerm = (document.getElementById('searchInput')?.value || '').toLowerCase();        const sortValue = document.getElementById('sortSelect')?.value || 'nameAsc';
+        
+        let filtered = state.cars.filter(c => 
+            `${c.brand} ${c.model} ${c.vin} ${c.plate}`.toLowerCase().includes(searchTerm)
+        );
+        
+        filtered.sort((a, b) => {
+            switch(sortValue) {
+                case 'nameAsc': return (a.brand+a.model).localeCompare(b.brand+b.model);
+                case 'nameDesc': return (b.brand+b.model).localeCompare(a.brand+a.model);
+                case 'priceAsc': return a.sp - b.sp;
+                case 'priceDesc': return b.sp - a.sp;
+                case 'dateDesc': return new Date(b.date) - new Date(a.date);
+                case 'dateAsc': return new Date(a.date) - new Date(b.date);
+                default: return 0;
+            }
+        });
+        
+        if (countEl) countEl.textContent = filtered.length;
+        
+        if (filtered.length === 0) {
+            grid.innerHTML = '';
+            if (emptyMsg) emptyMsg.classList.remove('hidden');
+            return;
+        }
+        if (emptyMsg) emptyMsg.classList.add('hidden');
+        
+        grid.innerHTML = filtered.map(car => {
+            const profit = (car.sp||0) - (car.costTotal||0);
+            const days = Math.floor((new Date() - new Date(car.date)) / 86400000);
+            const canEdit = !state.ui.viewOnly;
+            
+            return `
+            <div class="car-card bg-white rounded-xl shadow-md overflow-hidden transition">
+                <div class="relative">
+                    ${car.imgs?.length ? `<img src="${car.imgs[0]}" class="w-full h-48 object-cover">` : '<div class="w-full h-48 bg-gray-200"></div>'}
+                    ${car.view360 ? '<span class="absolute top-2 right-2 bg-blue-600 text-white px-2 py-1 rounded text-xs">360°</span>' : ''}
+                </div>
+                <div class="p-4">
+                    <h3 class="font-bold text-lg">${car.brand} ${car.model}</h3>
+                    <div class="text-sm text-gray-600 space-y-1 mt-2">
+                        <div>💰 ${car.sp?.toLocaleString()} ฿</div>
+                        <div>📅 ${car.year||'-'} | 🎨 ${car.color||'-'} | 📍 ${(car.mile||0).toLocaleString()} กม.</div>
+                        <div class="text-xs text-gray-500">ค้าง ${days} วัน</div>
+                    </div>
+                    <div class="pt-3 border-t flex flex-wrap gap-2 mt-3">
+                        <button onclick="openLoanModal('${car.id}')" class="px-3 py-1.5 bg-blue-100 text-blue-700 rounded text-sm">📄 ผ่อน</button>
+                        <button onclick="addToCompare('${car.id}')" class="px-3 py-1.5 bg-purple-100 text-purple-700 rounded text-sm">⚖️</button>
+                        <button onclick="showQR('${car.id}')" class="px-3 py-1.5 bg-green-100 text-green-700 rounded text-sm">📱</button>
+                        ${canEdit ? `<button onclick="openCarModal('${car.id}')" class="px-3 py-1.5 bg-yellow-100 text-yellow-700 rounded text-sm">✏️</button><button onclick="deleteCar('${car.id}')" class="px-3 py-1.5 bg-red-100 text-red-700 rounded text-sm">🗑️</button>` : ''}                    </div>
+                    ${profit > 0 ? `<div class="mt-2 text-sm text-green-600">กำไร: ${profit.toLocaleString()} ฿</div>` : ''}
+                </div>
+            </div>`;
+        }).join('');
+    }
+
+    function deleteCar(id) {
+        if (confirm('ยืนยันลบ?')) {
+            state.cars = state.cars.filter(c => c.id !== id);
+            saveState(); renderCars(); updateDashboard();
+        }
+    }
+
+    // Dashboard & Charts
+    function updateDashboard() {
+        const els = {
+            cars: document.getElementById('dashTotalCars'),
+            value: document.getElementById('dashTotalValue'),
+            profit: document.getElementById('dashAvgProfit'),
+            cust: document.getElementById('dashTotalCustomers')
+        };
+        if (els.cars) els.cars.textContent = state.cars.length;
+        if (els.value) els.value.textContent = state.cars.reduce((s,c)=>s+(c.sp||0),0).toLocaleString() + ' ฿';
+        if (els.profit) {
+            const avg = state.cars.length ? state.cars.reduce((s,c)=>s+((c.sp||0)-(c.costTotal||0)),0)/state.cars.length : 0;
+            els.profit.textContent = Math.round(avg).toLocaleString() + ' ฿';
+        }
+        if (els.cust) els.cust.textContent = state.customers.length;
+        
+        // ✅ รอเล็กน้อยให้แน่ใจว่า canvas พร้อม
+        setTimeout(renderCharts, 100);
+    }
+
+    function renderCharts() {
+        try {
+            const salesCtx = document.getElementById('salesChart')?.getContext('2d');
+            const ageCtx = document.getElementById('ageChart')?.getContext('2d');
+            
+            if (salesCtx && typeof Chart !== 'undefined') {
+                if (charts.sales) charts.sales.destroy();
+                charts.sales = new Chart(salesCtx, {
+                    type: 'line',
+                    data: { labels: ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.'], datasets: [{ label: 'ยอดขาย', data: [12,19,15,25,22,30], borderColor: '#2563eb', tension: 0.4 }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+            
+            if (ageCtx && typeof Chart !== 'undefined') {
+                if (charts.age) charts.age.destroy();                const now = new Date();
+                const ages = [0,0,0,0];
+                state.cars.forEach(c => {
+                    const d = Math.floor((now - new Date(c.date)) / 86400000);
+                    if (d <= 30) ages[0]++; else if (d <= 60) ages[1]++; else if (d <= 90) ages[2]++; else ages[3]++;
+                });
+                charts.age = new Chart(ageCtx, {
+                    type: 'doughnut',
+                    data: { labels: ['0-30','31-60','61-90','90+'], datasets: [{ data: ages, backgroundColor: ['#22c55e','#f59e0b','#ef4444','#7f1d1d'] }] },
+                    options: { responsive: true, maintainAspectRatio: false }
+                });
+            }
+        } catch (e) { console.log('Chart error (อาจยังไม่มีข้อมูล):', e); }
+    }
+
+    // Loan Functions
+    function openLoanModal(carId) {
+        currentLoanCarId = carId;
+        const car = state.cars.find(c => c.id === carId);
+        const priceEl = document.getElementById('outCarPrice');
+        if (car && priceEl) priceEl.textContent = car.sp?.toLocaleString() + ' ฿';
+        openModal('loanModal');
+        calcLoan();
+    }
+
+    function calcLoan() {
+        const car = state.cars.find(c => c.id === currentLoanCarId);
+        if (!car) return;
+        
+        const price = car.sp || 0;
+        const downPct = parseFloat(document.getElementById('loanDown')?.value) || 0;
+        const down = price * (downPct / 100);
+        const loanAmt = price - down;
+        const rate = parseFloat(document.getElementById('loanRate')?.value) || 7;
+        const term = parseInt(document.getElementById('loanTerm')?.value) || 72;
+        
+        const r = rate / 100 / 12;
+        const monthly = loanAmt * (r * Math.pow(1+r, term)) / (Math.pow(1+r, term) - 1);
+        const totalInt = monthly * term - loanAmt;
+        const eff = Math.pow(1 + r, 12) - 1;
+        
+        const set = (id, val) => { const el = document.getElementById(id); if (el) el.textContent = val; };
+        set('outDown', down.toLocaleString() + ' ฿');
+        set('outLoan', loanAmt.toLocaleString() + ' ฿');
+        set('outInterest', totalInt.toLocaleString() + ' ฿');
+        set('outTotal', (price + totalInt).toLocaleString() + ' ฿');
+        set('outEff', (eff*100).toFixed(2) + '%');
+        set('outMonthly', Math.round(monthly).toLocaleString() + ' ฿');
+    }
+    function addLoanPlan() {
+        const car = state.cars.find(c => c.id === currentLoanCarId);
+        state.loanPlans.push({
+            carId: currentLoanCarId, carName: `${car?.brand||''} ${car?.model||''}`,
+            customer: document.getElementById('loanCustName')?.value || '',
+            phone: document.getElementById('loanCustPhone')?.value || '',
+            bank: document.getElementById('loanBank')?.value || '',
+            monthly: document.getElementById('outMonthly')?.textContent || '',
+            date: new Date().toISOString()
+        });
+        saveState(); alert('เพิ่มแผนสำเร็จ');
+    }
+
+    function exportLoanExcel() {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.loanPlans), 'Loans');
+        XLSX.writeFile(wb, 'StockCEO_Loans.xlsx');
+    }
+
+    function copyLoan() {
+        const txt = `ราคา: ${document.getElementById('outCarPrice')?.textContent}\nผ่อน: ${document.getElementById('outMonthly')?.textContent}`;
+        navigator.clipboard.writeText(txt).then(() => alert('คัดลอกแล้ว'));
+    }
+
+    function printLoan() { window.print(); }
+
+    // Compare
+    function addToCompare(id) {
+        if (state.compareList.length >= 3) return alert('สูงสุด 3 คัน');
+        if (!state.compareList.includes(id)) { state.compareList.push(id); renderCompare(); }
+    }
+
+    function renderCompare() {
+        const container = document.getElementById('compareList');
+        if (!container) return;
+        
+        if (!state.compareList.length) {
+            container.innerHTML = '<div class="text-center text-gray-500 py-8">ยังไม่มีรถที่เลือก</div>';
+            return;
+        }
+        
+        const cars = state.compareList.map(id => state.cars.find(c => c.id === id)).filter(Boolean);
+        container.innerHTML = `<table class="w-full"><thead><tr class="bg-gray-100"><th class="border p-3 text-left">รายการ</th>${cars.map(c=>`<th class="border p-3">${c.brand} ${c.model}</th>`).join('')}</tr></thead><tbody>
+            <tr><td class="border p-3">💰 ราคา</td>${cars.map(c=>`<td class="border p-3">${c.sp?.toLocaleString()} ฿</td>`).join('')}</tr>
+            <tr><td class="border p-3">📅 ปี</td>${cars.map(c=>`<td class="border p-3">${c.year||'-'}</td>`).join('')}</tr>
+            <tr><td class="border p-3">🗑️</td>${cars.map(c=>`<td class="border p-3"><button onclick="removeCompare('${c.id}')" class="text-red-600">✕</button></td>`).join('')}</tr>
+        </tbody></table>`;
+    }
+
+    function removeCompare(id) { state.compareList = state.compareList.filter(i => i !== id); renderCompare(); }    function clearCompare() { state.compareList = []; renderCompare(); }
+
+    // QR
+    function showQR(id) {
+        const car = state.cars.find(c => c.id === id);
+        const container = document.getElementById('qrCode');
+        if (!container || !car) return;
+        container.innerHTML = '';
+        if (typeof QRCode !== 'undefined') {
+            new QRCode(container, { text: `${car.brand} ${car.model}\nVIN: ${car.vin}\nราคา: ${car.sp?.toLocaleString()} ฿`, width: 200, height: 200 });
+        }
+        openModal('qrModal');
+    }
+
+    // Auth
+    function toggleAuthMode() {
+        document.getElementById('loginForm')?.classList.toggle('hidden');
+        document.getElementById('registerForm')?.classList.toggle('hidden');
+    }
+
+    function login() {
+        const email = document.getElementById('loginEmail')?.value;
+        const pass = document.getElementById('loginPass')?.value;
+        const user = state.users.find(u => u.email === email && u.pass === pass);
+        if (user) { state.currentUser = user; saveState(); applyUI(); closeModal('authModal'); alert('เข้าสู่ระบบสำเร็จ'); }
+        else alert('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+    }
+
+    function register() {
+        const email = document.getElementById('regEmail')?.value;
+        const pass = document.getElementById('regPass')?.value;
+        if (!email || pass?.length < 6) return alert('กรอกข้อมูลให้ครบ (รหัสผ่าน 6+ ตัว)');
+        if (state.users.find(u => u.email === email)) return alert('อีเมลนี้มีแล้ว');
+        state.users.push({ email, pass, role: 'user', pin: '0000' });
+        saveState(); alert('สมัครสำเร็จ กรุณาเข้าสู่ระบบ'); toggleAuthMode();
+    }
+
+    function logout() { state.currentUser = null; saveState(); applyUI(); alert('ออกจากระบบแล้ว'); }
+
+    // PIN
+    function enterPin(n) { if (pinInput.length < 4) { pinInput += n; updatePinDisplay(); } }
+    function backPin() { pinInput = pinInput.slice(0,-1); updatePinDisplay(); }
+    function clearPin() { pinInput = ''; updatePinDisplay(); }
+    function updatePinDisplay() {
+        const el = document.getElementById('pinDisplay');
+        if (el) el.textContent = (pinInput + '____').slice(0,4).split('').join(' ');
+    }
+    function verifyPin() {
+        if (pinInput === state.settings.pin) { closeModal('pinModal'); pinInput=''; updatePinDisplay(); }
+        else { alert('PIN ไม่ถูกต้อง'); pinInput=''; updatePinDisplay(); }    }
+    function changePIN() {
+        if (document.getElementById('pinOld')?.value !== state.settings.pin) return alert('PIN ปัจจุบันผิด');
+        const np = document.getElementById('pinNew')?.value;
+        if (np?.length !== 4) return alert('PIN ใหม่ต้องมี 4 หลัก');
+        state.settings.pin = np; saveState(); closeModal('userModal'); alert('เปลี่ยน PIN สำเร็จ');
+    }
+
+    // Settings
+    function saveSettings() {
+        state.settings.name = document.getElementById('cfgName')?.value || 'Stock CEO';
+        state.settings.logo = document.getElementById('cfgLogo')?.value || '';
+        saveState(); applyUI(); closeModal('settingsModal'); alert('บันทึกแล้ว');
+    }
+    function saveWarranty() {
+        ['wStart','wEnd','bStart','bEnd','wNote'].forEach(k => {
+            const el = document.getElementById(k); if (el) state.settings[k] = el.value;
+        });
+        saveState(); closeModal('settingsModal'); alert('บันทึกแล้ว');
+    }
+
+    // Data
+    function backupJSON() {
+        const blob = new Blob([JSON.stringify(state,null,2)], {type:'application/json'});
+        const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+        a.download = `stockceo_${new Date().toISOString().split('T')[0]}.json`; a.click();
+    }
+    function restoreJSON(input) {
+        const file = input.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => { try { Object.assign(state, JSON.parse(e.target.result)); saveState(); init(); alert('Restore สำเร็จ'); closeModal('dataModal'); } catch { alert('ไฟล์ไม่ถูกต้อง'); } };
+        reader.readAsText(file);
+    }
+    function importExcel(input) {
+        const file = input.files?.[0]; if (!file) return;
+        const reader = new FileReader();
+        reader.onload = e => {
+            const wb = XLSX.read(new Uint8Array(e.target.result), {type:'array'});
+            const data = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]]);
+            data.forEach(row => state.cars.push({ id: Date.now()+Math.random().toString(36).slice(2), brand: row.brand||row['ยี่ห้อ']||'', model: row.model||row['รุ่น']||'', year: row.year||row['ปี']||'', sp: row.sp||row['ราคา']||0, date: new Date().toISOString() }));
+            saveState(); renderCars(); updateDashboard(); alert(`Import ${data.length} รายการ`);
+        };
+        reader.readAsArrayBuffer(file);
+    }
+    function clearAll() { if (confirm('ล้างข้อมูลทั้งหมด?')) { localStorage.removeItem('stockCEO'); location.reload(); } }
+    function exportAllExcel() {
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.cars), 'Cars');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.customers), 'CRM');
+        XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(state.loanPlans), 'Loans');        XLSX.writeFile(wb, `StockCEO_${new Date().toISOString().split('T')[0]}.xlsx`);
+    }
+
+    // Firebase
+    function connectFirebase() {
+        try {
+            const config = JSON.parse(document.getElementById('fbConfig')?.value);
+            const collection = document.getElementById('fbCollection')?.value;
+            if (typeof firebase !== 'undefined') firebase.initializeApp(config);
+            state.firebase = { connected: true, config, project: config?.projectId, collection };
+            document.getElementById('fbProjectName')!.textContent = config?.projectId || '-';
+            document.getElementById('fbCollectionName')!.textContent = collection || '-';
+            document.getElementById('firebaseStatus')?.classList.remove('hidden');
+            syncToFirebase(); saveState(); alert('เชื่อมต่อสำเร็จ');
+        } catch (e) { alert('Error: ' + e.message); }
+    }
+    function syncToFirebase() {
+        if (!state.firebase.connected || typeof firebase === 'undefined') return;
+        try { firebase.database().ref(state.firebase.collection).set(state); } catch (e) { console.error(e); }
+    }
+
+    // Notifications
+    function checkNotifications() {
+        const container = document.getElementById('alertContainer'); if (!container) return;
+        const alerts = []; const now = new Date();
+        if (state.settings.wEnd) {
+            const left = Math.ceil((new Date(state.settings.wEnd) - now) / 86400000);
+            if (left < 0) alerts.push({t:'danger',m:'⚠️ Warranty หมดอายุ'});
+            else if (left <= 30) alerts.push({t:'warning',m:`⚠️ Warranty จะหมดใน ${left} วัน`});
+        }
+        state.cars.forEach(c => { const d = Math.floor((now - new Date(c.date))/86400000); if (d>90) alerts.push({t:'warning',m:`🚗 ${c.brand} ${c.model} ค้าง ${d} วัน`}); });
+        container.innerHTML = alerts.length ? alerts.map(a=>`<div class="p-4 rounded-lg ${a.t==='danger'?'bg-red-50 border-l-4 border-red-500':'bg-yellow-50 border-l-4 border-yellow-500'}">${a.m}</div>`).join('') : '<div class="text-center text-gray-500 py-8">✅ ไม่มีแจ้งเตือน</div>';
+    }
+</script>
+</body>
+</html>
