@@ -1700,7 +1700,7 @@ const FB = {
         await this.saveData('stockCEO/data', data);
     },
     
-    async loadFromCloud() {
+        async loadFromCloud() {
         const data = await this.loadData('stockCEO/data');
         if (data) {
             if (data.cars) localStorage.setItem('sc13_cars', JSON.stringify(data.cars));
@@ -1710,6 +1710,29 @@ const FB = {
             return true;
         }
         return false;
+    },
+    
+    // ✅ เพิ่มฟังก์ชันนี้
+    listenToCloud(callback) {
+        if (window.FIREBASE_DB && window.FIREBASE_ONVALUE) {
+            const dbRef = window.FIREBASE_REF(window.FIREBASE_DB, 'stockCEO/data');
+            window.FIREBASE_ONVALUE(dbRef, (snapshot) => {
+                const data = snapshot.val();
+                if (data && !isUpdatingFromCloud) {
+                    isUpdatingFromCloud = true;
+                    
+                    if (data.cars) localStorage.setItem('sc13_cars', JSON.stringify(data.cars));
+                    if (data.crmData) localStorage.setItem('sc13_crm', JSON.stringify(data.crmData));
+                    if (data.settings) localStorage.setItem('sc13_settings', JSON.stringify(data.settings));
+                    if (data.goal) localStorage.setItem('sc13_goal', JSON.stringify(data.goal));
+                    
+                    if (callback) callback(data);
+                    
+                    setTimeout(() => { isUpdatingFromCloud = false; }, 500);
+                }
+            });
+            console.log('👂 Real-time listener activated!');
+        }
     }
 };
 function nextImage() {
@@ -2179,6 +2202,8 @@ function loadFromLocalStorage() {
 }
 
             function SD() {
+    if (isUpdatingFromCloud) return; // ✅ เพิ่มบรรทัดนี้
+    
     try {
         localStorage.setItem('sc13_settings', JSON.stringify(SI));
         localStorage.setItem('sc13_goal', JSON.stringify(salesGoal));
@@ -2375,7 +2400,27 @@ function handleLogout() {
             }
 
             // ========== INIT APP ==========
-            function initApp() { LD(); AT(); renderStats(); renderGoalBar(); checkNotifications(); if (currentTab === 'stock') renderGrid(); }
+            function initApp() {
+    LD();
+    AT();
+    renderStats();
+    renderGoalBar();
+    checkNotifications();
+    if (currentTab === 'stock') renderGrid();
+    
+    // ✅ เพิ่ม Real-time Listener
+    FB.listenToCloud((data) => {
+        console.log('📡 ข้อมูลอัปเดตจากคลาวด์!');
+        loadFromLocalStorage();
+        renderStats();
+        renderGoalBar();
+        if (currentTab === 'stock') renderGrid();
+        else if (currentTab === 'crm') renderCRM();
+        else if (currentTab === 'dashboard') renderEnhancedDashboard();
+        else if (currentTab === 'compare') renderCompareView();
+        showToast('🔄 ข้อมูลอัปเดตจากคลาวด์', 'info', 'Real-time Sync', 2000);
+    });
+}
 
             // ========== RENDER FUNCTIONS ==========
             function renderStats() {
