@@ -68,15 +68,6 @@ body.modal-open {
 }
     /* ========== FIX OVERLAPPING PAGES ========== */
 /* ทำให้ทุกหน้าหลักซ่อนไว้ก่อน */
-#roleSelector,
-#loginScreen,
-#customerPortal,
-/* ========== MAIN APP FIX ========== */
-#mainApp {
-    display: none;
-    position: relative;
-    z-index: 1; /* ✅ z-index ต่ำกว่า login */
-}
 
 /* ✅ เมื่อ Main App แสดง → ซ่อนหน้าอื่น */
 body:has(#mainApp[style*="display: block"]) #loginScreen,
@@ -2026,6 +2017,9 @@ function closeModal(modalElement) {
         // ==================== MAIN APPLICATION v13.2 - ENHANCED EDIT ====================
         const APP = (function() {
             'use strict';
+
+// ✅ เพิ่มบรรทัดนี้
+let isUpdatingFromCloud = false;
             
       // ========== IMAGE GALLERY ==========
 let currentGalleryIndex = 0;
@@ -2657,7 +2651,8 @@ function loadFromLocalStorage() {
 
             // ========== ROLE SELECTION ==========
             function selectRole(role) {
-                currentRole = role;
+    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนเลือก Role
+    currentRole = role;
                 document.querySelectorAll('.role-option').forEach(c => c.classList.remove('selected'));
                 const cardMap = { 'admin': 'card-admin', 'sales': 'card-sales', 'customer': 'card-customer' };
                 const selectedCard = document.getElementById(cardMap[role]);
@@ -2673,6 +2668,7 @@ function loadFromLocalStorage() {
             }
 
             function customerPortal() {
+    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดงหน้า Customer
     currentRole = 'customer';
     currentUser = null;
     isLoggedIn = false;
@@ -2691,7 +2687,8 @@ function loadFromLocalStorage() {
 }
 
             function loginScreen(role) {
-                document.getElementById('roleSelector').style.display = 'none';
+    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดงหน้า Login
+    document.getElementById('roleSelector').style.display = 'none';
                 document.getElementById('loginScreen').classList.add('active');
                 document.getElementById('loginError').classList.remove('show');
                 document.getElementById('loginUser').value = '';
@@ -2710,6 +2707,7 @@ function loadFromLocalStorage() {
             }
 
             function goBack() {
+    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนกลับไป Role Selector
     currentRole = null;
     currentUser = null;
     isLoggedIn = false;
@@ -2742,8 +2740,10 @@ function loadFromLocalStorage() {
         isLoggedIn = true;
         lockoutAttempts[u] = { count: 0, time: 0 };
         localStorage.setItem('sc13_session', JSON.stringify({ username: u, loginTime: new Date().toISOString(), role: currentRole }));
-        document.getElementById('loginScreen').classList.remove('active');
-        document.getElementById('mainApp').style.display = 'block';
+hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดง Main App
+document.getElementById('loginScreen').classList.remove('active');
+document.getElementById('loginScreen').style.display = 'none'; // ✅ เพิ่มบรรทัดนี้
+document.getElementById('mainApp').style.display = 'block';
         updateUserUI();
         initApp();
         showToast(__('welcome') + ', ' + user.name + '!', 'success');
@@ -2763,7 +2763,7 @@ function handleLogout() {
         currentUser = null;
         isLoggedIn = false;
         localStorage.removeItem('sc13_session');
-        document.getElementById('mainApp').style.display = 'none';
+        hideAllPages(); // ✅ ซ่อนทุกหน้าก่อน Logout
         goBack();
     });
 }
@@ -5236,8 +5236,10 @@ function renderDashboardCharts(allCars, soldInPeriod, showCars, salesPerformance
 
             // ========== INIT ==========
             function init() {
-                try {
-                    const s = JSON.parse(localStorage.getItem('sc13_session') || 'null');
+    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนตัดสินใจ
+    
+    try {
+        const s = JSON.parse(localStorage.getItem('sc13_session') || 'null');
                     if (s && s.username && s.role && s.role !== 'customer') {
                         const u = USERS[s.username];
                         if (u && u.role === s.role) {
