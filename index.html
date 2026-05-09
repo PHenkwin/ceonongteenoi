@@ -16,7 +16,32 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&family=Kanit:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+  import { getDatabase, ref, set, get, onValue } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-database.js";
+  
+  const firebaseConfig = {
+    apiKey: "AIzaSyDKOk5NRhDUhh6JlC2HkPoxy3yWcTLzVTc",
+    authDomain: "ceonongteenoi-d5669.firebaseapp.com",
+    databaseURL: "https://ceonongteenoi-d5669-default-rtdb.firebaseio.com",
+    projectId: "ceonongteenoi-d5669",
+    storageBucket: "ceonongteenoi-d5669.firebasestorage.app",
+    messagingSenderId: "907492695863",
+    appId: "1:907492695863:web:b347a08a8dfd30ced204b2"
+  };
 
+  const app = initializeApp(firebaseConfig);
+  const database = getDatabase(app);
+  
+  window.FIREBASE_DB = database;
+  window.FIREBASE_REF = ref;
+  window.FIREBASE_SET = set;
+  window.FIREBASE_GET = get;
+  window.FIREBASE_ONVALUE = onValue;
+  
+  console.log('✅ Firebase Realtime Database connected!');
+</script>
     <style>
       /* ========== CUSTOMER CAR DETAIL PAGE ========== */
 .car-detail-fullpage {
@@ -1615,6 +1640,7 @@
         // ==================== MAIN APPLICATION v13.2 - ENHANCED EDIT ====================
         const APP = (function() {
             'use strict';
+            
       // ========== IMAGE GALLERY ==========
 let currentGalleryIndex = 0;
 let currentGalleryImages = [];
@@ -1624,7 +1650,68 @@ function initGallery(images) {
     currentGalleryIndex = 0;
     updateGalleryDisplay();
 }
-
+  
+    // ========== FIREBASE DATA LAYER ==========
+const FB = {
+    async saveData(key, data) {
+        if (window.FIREBASE_DB && window.FIREBASE_SET) {
+            try {
+                await window.FIREBASE_SET(window.FIREBASE_REF(window.FIREBASE_DB, key), data);
+                return true;
+            } catch (e) {
+                console.error('Firebase save error:', e);
+                return false;
+            }
+        }
+        return false;
+    },
+    
+    async loadData(key) {
+        if (window.FIREBASE_DB && window.FIREBASE_GET) {
+            try {
+                const snapshot = await window.FIREBASE_GET(window.FIREBASE_REF(window.FIREBASE_DB, key));
+                return snapshot.val();
+            } catch (e) {
+                console.error('Firebase load error:', e);
+                return null;
+            }
+        }
+        return null;
+    },
+    
+    listenData(key, callback) {
+        if (window.FIREBASE_DB && window.FIREBASE_ONVALUE) {
+            const dbRef = window.FIREBASE_REF(window.FIREBASE_DB, key);
+            window.FIREBASE_ONVALUE(dbRef, (snapshot) => {
+                callback(snapshot.val());
+            });
+        }
+    },
+    
+    // Sync with localStorage as backup
+    async syncToCloud() {
+        const data = {
+            cars: JSON.parse(localStorage.getItem('sc13_cars') || '[]'),
+            crmData: JSON.parse(localStorage.getItem('sc13_crm') || '{}'),
+            settings: JSON.parse(localStorage.getItem('sc13_settings') || '{}'),
+            goal: JSON.parse(localStorage.getItem('sc13_goal') || '{}'),
+            timestamp: new Date().toISOString()
+        };
+        await this.saveData('stockCEO/data', data);
+    },
+    
+    async loadFromCloud() {
+        const data = await this.loadData('stockCEO/data');
+        if (data) {
+            if (data.cars) localStorage.setItem('sc13_cars', JSON.stringify(data.cars));
+            if (data.crmData) localStorage.setItem('sc13_crm', JSON.stringify(data.crmData));
+            if (data.settings) localStorage.setItem('sc13_settings', JSON.stringify(data.settings));
+            if (data.goal) localStorage.setItem('sc13_goal', JSON.stringify(data.goal));
+            return true;
+        }
+        return false;
+    }
+};
 function nextImage() {
     if (currentGalleryImages.length <= 1) return;
     currentGalleryIndex = (currentGalleryIndex + 1) % currentGalleryImages.length;
@@ -1894,6 +1981,7 @@ function refreshDetailCompare(carId) {
         btn.style.borderColor = isCmp ? '#c9a84c' : '#ddd';
     }
 }
+       
             // ========== LANGUAGE SYSTEM ==========
             const LANG = {
                 th: {
@@ -2028,7 +2116,7 @@ function refreshDetailCompare(carId) {
 
             // ========== CONFIG ==========
             const USERS = {
-                admin: { id: 'admin', password: 'admin123', name: 'Admin ใหญ่', role: 'admin', avatar: '👑', permissions: ['all'], salesPerson: 'admin', commissionRate: 5 },
+                admin: { id: 'admin', password: '254097', name: 'Admin ใหญ่', role: 'admin', avatar: '👑', permissions: ['all'], salesPerson: 'admin', commissionRate: 5 },
                 somchai: { id: 'somchai', password: '1234', name: 'สมชาย นักขาย', role: 'sales', avatar: '💼', permissions: ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'], salesPerson: 'somchai', commissionRate: 5 },
                 somsri: { id: 'somsri', password: '1234', name: 'สมศรี มือทอง', role: 'sales', avatar: '💎', permissions: ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'], salesPerson: 'somsri', commissionRate: 7 }
             };
@@ -2063,33 +2151,49 @@ function refreshDetailCompare(carId) {
 
             // ========== DATA MANAGEMENT ==========
             function LD() {
-                try { SI = JSON.parse(localStorage.getItem('sc13_settings') || JSON.stringify(SI)); } catch (e) {}
-                try { salesGoal = JSON.parse(localStorage.getItem('sc13_goal') || JSON.stringify(salesGoal)); } catch (e) {}
-                try { priceRequests = JSON.parse(localStorage.getItem('sc13_pr') || '[]'); } catch (e) { priceRequests = []; }
-                try { FINANCE_COMPANIES = JSON.parse(localStorage.getItem('sc13_finance') || JSON.stringify(FINANCE_COMPANIES)); } catch (e) {}
-                try { cars = JSON.parse(localStorage.getItem('sc13_cars') || '[]'); if (!cars.length) cars = GDC(); } catch (e) { cars = GDC(); }
-                try { crmData = JSON.parse(localStorage.getItem('sc13_crm') || '{}'); } catch (e) { crmData = {}; }
-                try { compareIds = JSON.parse(localStorage.getItem('sc13_cmp') || '[]'); } catch (e) { compareIds = []; }
-                try { notifHistory = JSON.parse(localStorage.getItem('sc13_notif') || '[]'); } catch (e) { notifHistory = []; }
-                theme = localStorage.getItem('sc_theme') || 'dark';
-                AT();
-                try { customerFav = JSON.parse(localStorage.getItem('sc13_fav') || '[]'); } catch (e) { customerFav = []; }
-                try { customerCmp = JSON.parse(localStorage.getItem('sc13_ccmp') || '[]').filter(id => cars.find(x => x.id === id && x.status === 'show')); } catch (e) { customerCmp = []; }
-            }
+    // ✅ ลองโหลดจาก Firebase ก่อน
+    FB.loadFromCloud().then(success => {
+        if (success) {
+            console.log('✅ Loaded from Firebase');
+        }
+        // fallback to localStorage
+        loadFromLocalStorage();
+    }).catch(() => {
+        loadFromLocalStorage();
+    });
+}
+
+function loadFromLocalStorage() {
+    try { SI = JSON.parse(localStorage.getItem('sc13_settings') || JSON.stringify(SI)); } catch (e) {}
+    try { salesGoal = JSON.parse(localStorage.getItem('sc13_goal') || JSON.stringify(salesGoal)); } catch (e) {}
+    try { priceRequests = JSON.parse(localStorage.getItem('sc13_pr') || '[]'); } catch (e) { priceRequests = []; }
+    try { FINANCE_COMPANIES = JSON.parse(localStorage.getItem('sc13_finance') || JSON.stringify(FINANCE_COMPANIES)); } catch (e) {}
+    try { cars = JSON.parse(localStorage.getItem('sc13_cars') || '[]'); if (!cars.length) cars = GDC(); } catch (e) { cars = GDC(); }
+    try { crmData = JSON.parse(localStorage.getItem('sc13_crm') || '{}'); } catch (e) { crmData = {}; }
+    try { compareIds = JSON.parse(localStorage.getItem('sc13_cmp') || '[]'); } catch (e) { compareIds = []; }
+    try { notifHistory = JSON.parse(localStorage.getItem('sc13_notif') || '[]'); } catch (e) { notifHistory = []; }
+    theme = localStorage.getItem('sc_theme') || 'dark';
+    AT();
+    try { customerFav = JSON.parse(localStorage.getItem('sc13_fav') || '[]'); } catch (e) { customerFav = []; }
+    try { customerCmp = JSON.parse(localStorage.getItem('sc13_ccmp') || '[]').filter(id => cars.find(x => x.id === id && x.status === 'show')); } catch (e) { customerCmp = []; }
+}
 
             function SD() {
-                try {
-                    localStorage.setItem('sc13_settings', JSON.stringify(SI));
-                    localStorage.setItem('sc13_goal', JSON.stringify(salesGoal));
-                    localStorage.setItem('sc13_pr', JSON.stringify(priceRequests));
-                    localStorage.setItem('sc13_finance', JSON.stringify(FINANCE_COMPANIES));
-                    localStorage.setItem('sc13_cars', JSON.stringify(cars));
-                    localStorage.setItem('sc13_crm', JSON.stringify(crmData));
-                    localStorage.setItem('sc13_cmp', JSON.stringify(compareIds));
-                    localStorage.setItem('sc13_notif', JSON.stringify(notifHistory));
-                    localStorage.setItem('sc_theme', theme);
-                } catch (e) { console.warn('Storage quota exceeded'); }
-            }
+    try {
+        localStorage.setItem('sc13_settings', JSON.stringify(SI));
+        localStorage.setItem('sc13_goal', JSON.stringify(salesGoal));
+        localStorage.setItem('sc13_pr', JSON.stringify(priceRequests));
+        localStorage.setItem('sc13_finance', JSON.stringify(FINANCE_COMPANIES));
+        localStorage.setItem('sc13_cars', JSON.stringify(cars));
+        localStorage.setItem('sc13_crm', JSON.stringify(crmData));
+        localStorage.setItem('sc13_cmp', JSON.stringify(compareIds));
+        localStorage.setItem('sc13_notif', JSON.stringify(notifHistory));
+        localStorage.setItem('sc_theme', theme);
+        
+        // ✅ ซิงค์ข้อมูลไป Firebase อัตโนมัติ
+        FB.syncToCloud();
+    } catch (e) { console.warn('Storage quota exceeded'); }
+}
 
             function SCD() {
                 localStorage.setItem('sc13_fav', JSON.stringify(customerFav));
@@ -2182,16 +2286,16 @@ function refreshDetailCompare(carId) {
                 document.getElementById('loginUser').value = '';
                 document.getElementById('loginPass').value = '';
                 if (role === 'admin') {
-                    document.getElementById('loginIcon').textContent = '👑';
-                    document.getElementById('loginTitle').textContent = 'เข้าสู่ระบบ Admin';
-                    document.getElementById('loginBtn').className = 'login-btn';
-                    document.getElementById('demoInfo').innerHTML = '<strong>🔑 ทดลอง:</strong> admin / admin123';
-                } else {
-                    document.getElementById('loginIcon').textContent = '💼';
-                    document.getElementById('loginTitle').textContent = 'เข้าสู่ระบบ Sales';
-                    document.getElementById('loginBtn').className = 'login-btn sales-btn';
-                    document.getElementById('demoInfo').innerHTML = '<strong>🔑 ทดลอง:</strong> somchai / 1234';
-                }
+    document.getElementById('loginIcon').textContent = '👑';
+    document.getElementById('loginTitle').textContent = 'เข้าสู่ระบบ Admin';
+    document.getElementById('loginBtn').className = 'login-btn';
+    document.getElementById('demoInfo').innerHTML = '<strong>🔑 ทดลอง:</strong> admin / 254097';
+} else {
+    document.getElementById('loginIcon').textContent = '💼';
+    document.getElementById('loginTitle').textContent = 'เข้าสู่ระบบ Sales';
+    document.getElementById('loginBtn').className = 'login-btn sales-btn';
+    document.getElementById('demoInfo').innerHTML = '<strong>🔑 ทดลอง:</strong> somchai / 1234';
+}
             }
 
             function goBack() {
@@ -2252,7 +2356,7 @@ function handleLogout() {
         goBack();
     });
 }
-
+      
             function togglePassword() {
                 const input = document.getElementById('loginPass');
                 if (input) input.type = input.type === 'password' ? 'text' : 'password';
@@ -2933,16 +3037,20 @@ function handleLogout() {
 
             // ========== SETTINGS ==========
             function openSettingsModal() {
-                const h = '<div class="modal-overlay open" onclick="if(event.target===this)this.remove()"><div class="modal modal-lg"><div class="modal-header"><div class="modal-title">⚙️ ตั้งค่าระบบ</div><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button></div>' +
-                    '<div style="font-family:var(--font-heading);color:var(--gold-light);margin:16px 0 8px">🏪 ข้อมูลร้าน</div>' +
-                    '<div class="form-row"><div class="form-group"><label>ชื่อร้าน</label><input class="form-input" id="setName" value="' + EH(SI.name) + '"></div><div class="form-group"><label>เบอร์โทร</label><input class="form-input" id="setPhone" value="' + SI.phone + '"></div></div>' +
-                    '<div class="form-row"><div class="form-group"><label>LINE ID</label><input class="form-input" id="setLine" value="' + SI.lineId + '"></div><div class="form-group"><label>อีเมล</label><input class="form-input" id="setEmail" value="' + SI.email + '"></div></div>' +
-                    '<div style="font-family:var(--font-heading);color:var(--gold-light);margin:16px 0 8px">🎯 เป้าหมาย</div>' +
-                    '<div class="form-row"><div class="form-group"><label>เป้าขายต่อเดือน</label><input type="number" class="form-input" id="setGoal" value="' + salesGoal.monthly + '"></div><div class="form-group"><label>รางวัล</label><input class="form-input" id="setReward" value="' + EH(salesGoal.reward) + '"></div></div>' +
-                    '<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-outline" onclick="this.closest(\'.modal-overlay\').remove()" style="flex:1">ยกเลิก</button><button class="btn btn-primary" onclick="APP.saveSettings()" style="flex:2">💾 บันทึก</button></div>' +
-                    '<div style="display:flex;gap:8px;margin-top:8px"><button class="btn btn-outline btn-sm" onclick="APP.exportExcel()">📤 Export Excel</button><button class="btn btn-danger btn-sm" onclick="APP.clearAllData()">🗑️ ล้างข้อมูล</button></div></div></div>';
-                document.getElementById('modalContainer').insertAdjacentHTML('beforeend', h);
-            }
+    const h = '<div class="modal-overlay open" onclick="if(event.target===this)this.remove()"><div class="modal modal-lg"><div class="modal-header"><div class="modal-title">⚙️ ตั้งค่าระบบ</div><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">&times;</button></div>' +
+        '<div style="font-family:var(--font-heading);color:var(--gold-light);margin:16px 0 8px">🏪 ข้อมูลร้าน</div>' +
+        '<div class="form-row"><div class="form-group"><label>ชื่อร้าน</label><input class="form-input" id="setName" value="' + EH(SI.name) + '"></div><div class="form-group"><label>เบอร์โทร</label><input class="form-input" id="setPhone" value="' + SI.phone + '"></div></div>' +
+        '<div class="form-row"><div class="form-group"><label>LINE ID</label><input class="form-input" id="setLine" value="' + SI.lineId + '"></div><div class="form-group"><label>อีเมล</label><input class="form-input" id="setEmail" value="' + SI.email + '"></div></div>' +
+        '<div style="font-family:var(--font-heading);color:var(--gold-light);margin:16px 0 8px">🎯 เป้าหมาย</div>' +
+        '<div class="form-row"><div class="form-group"><label>เป้าขายต่อเดือน</label><input type="number" class="form-input" id="setGoal" value="' + salesGoal.monthly + '"></div><div class="form-group"><label>รางวัล</label><input class="form-input" id="setReward" value="' + EH(salesGoal.reward) + '"></div></div>' +
+        '<div style="display:flex;gap:8px;margin-top:16px"><button class="btn btn-outline" onclick="this.closest(\'.modal-overlay\').remove()" style="flex:1">ยกเลิก</button><button class="btn btn-primary" onclick="APP.saveSettings()" style="flex:2">💾 บันทึก</button></div>' +
+        '<div style="display:flex;gap:8px;margin-top:8px">' +
+        '<button class="btn btn-outline btn-sm" onclick="APP.exportExcel()">📤 Export Excel</button>' +
+        '<button class="btn btn-danger btn-sm" onclick="APP.clearAllData()">🗑️ ล้างข้อมูล</button>' +
+        '<button class="btn btn-outline btn-sm" onclick="FB.syncToCloud()">☁️ Sync Cloud</button>' +
+        '</div></div></div>';
+    document.getElementById('modalContainer').insertAdjacentHTML('beforeend', h);
+}
 
             function saveSettings() {
                 SI.name = document.getElementById('setName')?.value || SI.name;
@@ -3058,7 +3166,7 @@ function handleLogout() {
         };
         return icons[f] || '✅';
     };
-    
+
     const h = `
         <div class="modal-overlay open" onclick="if(event.target===this)this.remove()">
             <div class="modal modal-xl" style="background:transparent;max-width:1000px">
@@ -4051,6 +4159,7 @@ function renderDashboardCharts(allCars, soldInPeriod, showCars, salesPerformance
             }
         });
     }
+        
 
     // Sales Person Performance
     const salesPersonCtx = document.getElementById('salesPersonChart');
@@ -4254,7 +4363,7 @@ function exportQuotationPDF() {
     <button class="quick-contact-btn chat" onclick="APP.openCompareModal()" title="เปรียบเทียบ">
         📊
     </button>
-
+   
 
 
 </body>
