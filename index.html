@@ -48,7 +48,11 @@
 .login-container,
 #mainApp,
 .customer-portal {
-    animation: pageFadeIn 0.3s ease;
+    display: none;
+    position: relative;
+    z-index: 1;
+    /* ✅ เพิ่มบรรทัดนี้ */
+    transition: opacity 0.3s ease;
 }
 
 @keyframes pageFadeIn {
@@ -68,6 +72,15 @@ body.modal-open {
 }
     /* ========== FIX OVERLAPPING PAGES ========== */
 /* ทำให้ทุกหน้าหลักซ่อนไว้ก่อน */
+#roleSelector,
+#loginScreen,
+#customerPortal,
+/* ========== MAIN APP FIX ========== */
+#mainApp {
+    display: none;
+    position: relative;
+    z-index: 1; /* ✅ z-index ต่ำกว่า login */
+}
 
 /* ✅ เมื่อ Main App แสดง → ซ่อนหน้าอื่น */
 body:has(#mainApp[style*="display: block"]) #loginScreen,
@@ -2017,9 +2030,6 @@ function closeModal(modalElement) {
         // ==================== MAIN APPLICATION v13.2 - ENHANCED EDIT ====================
         const APP = (function() {
             'use strict';
-
-// ✅ เพิ่มบรรทัดนี้
-let isUpdatingFromCloud = false;
             
       // ========== IMAGE GALLERY ==========
 let currentGalleryIndex = 0;
@@ -2322,7 +2332,11 @@ function openCarDetailFull(id) {
     </div>`;
     
     // ซ่อน Customer Portal ปกติ
-    document.getElementById('customerPortal').style.display = 'none';
+    var portalEl = document.getElementById('customerPortal');
+if (portalEl) {
+    portalEl.style.opacity = '0';
+    portalEl.style.pointerEvents = 'none';
+}
     
     // แสดงหน้ารายละเอียด
     const detailPage = document.createElement('div');
@@ -2340,7 +2354,15 @@ function openCarDetailFull(id) {
 function closeCarDetailFull() {
     const page = document.getElementById('carDetailFullPage');
     if (page) page.remove();
-    document.getElementById('customerPortal').style.display = 'block';
+    
+    var portalEl = document.getElementById('customerPortal');
+    if (portalEl) {
+        portalEl.style.opacity = '1';
+        portalEl.style.pointerEvents = 'auto';
+        portalEl.style.display = 'block';
+        portalEl.classList.add('active');
+    }
+    
     renderCustomerGrid();
 }
 
@@ -2651,8 +2673,7 @@ function loadFromLocalStorage() {
 
             // ========== ROLE SELECTION ==========
             function selectRole(role) {
-    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนเลือก Role
-    currentRole = role;
+                currentRole = role;
                 document.querySelectorAll('.role-option').forEach(c => c.classList.remove('selected'));
                 const cardMap = { 'admin': 'card-admin', 'sales': 'card-sales', 'customer': 'card-customer' };
                 const selectedCard = document.getElementById(cardMap[role]);
@@ -2668,7 +2689,6 @@ function loadFromLocalStorage() {
             }
 
             function customerPortal() {
-    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดงหน้า Customer
     currentRole = 'customer';
     currentUser = null;
     isLoggedIn = false;
@@ -2687,8 +2707,7 @@ function loadFromLocalStorage() {
 }
 
             function loginScreen(role) {
-    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดงหน้า Login
-    document.getElementById('roleSelector').style.display = 'none';
+                document.getElementById('roleSelector').style.display = 'none';
                 document.getElementById('loginScreen').classList.add('active');
                 document.getElementById('loginError').classList.remove('show');
                 document.getElementById('loginUser').value = '';
@@ -2707,7 +2726,6 @@ function loadFromLocalStorage() {
             }
 
             function goBack() {
-    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนกลับไป Role Selector
     currentRole = null;
     currentUser = null;
     isLoggedIn = false;
@@ -2740,10 +2758,8 @@ function loadFromLocalStorage() {
         isLoggedIn = true;
         lockoutAttempts[u] = { count: 0, time: 0 };
         localStorage.setItem('sc13_session', JSON.stringify({ username: u, loginTime: new Date().toISOString(), role: currentRole }));
-hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนแสดง Main App
-document.getElementById('loginScreen').classList.remove('active');
-document.getElementById('loginScreen').style.display = 'none'; // ✅ เพิ่มบรรทัดนี้
-document.getElementById('mainApp').style.display = 'block';
+        document.getElementById('loginScreen').classList.remove('active');
+        document.getElementById('mainApp').style.display = 'block';
         updateUserUI();
         initApp();
         showToast(__('welcome') + ', ' + user.name + '!', 'success');
@@ -2763,7 +2779,7 @@ function handleLogout() {
         currentUser = null;
         isLoggedIn = false;
         localStorage.removeItem('sc13_session');
-        hideAllPages(); // ✅ ซ่อนทุกหน้าก่อน Logout
+        document.getElementById('mainApp').style.display = 'none';
         goBack();
     });
 }
@@ -3131,7 +3147,7 @@ function hideAllPages() {
     var portalEl = document.getElementById('customerPortal');
     if (portalEl) {
         portalEl.classList.remove('active');
-        portalEl.style.display = 'none';
+
     }
     
     // ซ่อน Quick Contact Float
@@ -5236,10 +5252,8 @@ function renderDashboardCharts(allCars, soldInPeriod, showCars, salesPerformance
 
             // ========== INIT ==========
             function init() {
-    hideAllPages(); // ✅ ซ่อนทุกหน้าก่อนตัดสินใจ
-    
-    try {
-        const s = JSON.parse(localStorage.getItem('sc13_session') || 'null');
+                try {
+                    const s = JSON.parse(localStorage.getItem('sc13_session') || 'null');
                     if (s && s.username && s.role && s.role !== 'customer') {
                         const u = USERS[s.username];
                         if (u && u.role === s.role) {
@@ -5335,6 +5349,10 @@ function exportQuotationPDF() {
         console.error('PDF Error:', err);
         showToast('ไม่สามารถสร้าง PDF ได้', 'error');
     });
+}
+       function shareToFacebook(carId) {
+    const url = encodeURIComponent(window.location.href + '?car=' + carId);
+    window.open('https://www.facebook.com/sharer/sharer.php?u=' + url);
 }
             // ========== PUBLIC API ==========
             return {
