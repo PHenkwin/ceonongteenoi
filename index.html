@@ -2403,7 +2403,7 @@ const FB = {
             return true;
         }
         return false;
-    },
+    }
     
     // ✅ เพิ่มฟังก์ชันนี้
     listenToCloud(callback) {
@@ -2889,15 +2889,16 @@ function refreshDetailCompare(carId) {
 
             // ========== DATA MANAGEMENT ==========
             function LD() {
-    // ✅ ลองโหลดจาก Firebase ก่อน
+    // ✅ โหลดจาก localStorage ก่อน (ข้อมูลล่าสุดที่ผู้ใช้แก้ไข)
+    loadFromLocalStorage();
+    
+    // ✅ แล้วค่อย sync จาก Firebase (แต่ไม่ทับข้อมูลที่ใหม่กว่า)
     FB.loadFromCloud().then(success => {
         if (success) {
-            console.log('✅ Loaded from Firebase');
+            console.log('✅ Synced from Firebase');
         }
-        // fallback to localStorage
-        loadFromLocalStorage();
     }).catch(() => {
-        loadFromLocalStorage();
+        console.log('⚠️ Firebase not available, using local data only');
     });
 }
 
@@ -2930,7 +2931,10 @@ function loadFromLocalStorage() {
         localStorage.setItem('sc13_notif', JSON.stringify(notifHistory));
         localStorage.setItem('sc_theme', theme);
         
-        // Sync to Firebase (fire and forget)
+        // ✅ บันทึก timestamp
+        localStorage.setItem('sc13_lastSave', new Date().toISOString());
+        
+        // Sync to Firebase
         FB.syncToCloud().catch(e => console.warn('Sync failed:', e));
         
         hasUnsavedChanges = false;
