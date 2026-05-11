@@ -2297,16 +2297,42 @@ function openModal(modalElement) {
     document.body.classList.add('modal-open');
     modalElement.classList.add('open');
 }
+    
+// เพิ่มฟังก์ชันนี้ใน APP object
+function showModalHTML(html) {
+    document.body.classList.add('modal-open');
+    document.getElementById('modalContainer').insertAdjacentHTML('beforeend', html);
+}
 
-function closeModal(modalElement) {
-    modalElement.classList.remove('open');
+function closeAllModals() {
+    document.querySelectorAll('.modal-overlay.open').forEach(m => m.remove());
     document.body.classList.remove('modal-open');
 }
         // ==================== MAIN APPLICATION v13.2 - ENHANCED EDIT ====================
         const APP = (function() {
             'use strict';
-            // ✅ ต้องเพิ่มบรรทัดนี้ก่อนฟังก์ชัน SD()
+
+// ✅ เพิ่ม: Real-time Sync Flag
 let isUpdatingFromCloud = false;
+
+// ✅ เพิ่ม: Auto Save Timer (บันทึกอัตโนมัติทุก 3 วินาที)
+let autoSaveInterval = null;
+let hasUnsavedChanges = false;
+
+function startAutoSave() {
+    if (autoSaveInterval) clearInterval(autoSaveInterval);
+    autoSaveInterval = setInterval(() => {
+        if (hasUnsavedChanges) {
+            console.log('💾 Auto-saving...');
+            SD();
+            hasUnsavedChanges = false;
+        }
+    }, 3000); // บันทึกทุก 3 วินาที
+}
+
+function markUnsavedChanges() {
+    hasUnsavedChanges = true;
+}
             
       // ========== IMAGE GALLERY ==========
 let currentGalleryIndex = 0;
@@ -2633,17 +2659,17 @@ function closeCarDetailFull() {
     const page = document.getElementById('carDetailFullPage');
     if (page) page.remove();
     
-    // ✅ restore
+    // restore
     var metaTheme = document.querySelector('meta[name="theme-color"]');
     if (metaTheme) metaTheme.setAttribute('content', '#0a0a0a');
     document.body.style.background = '';
     
-    // ✅ restore portal
+    // ✅ restore portal - ใช้ style อย่างเดียว หรือ class อย่างเดียว
     var portalEl = document.getElementById('customerPortal');
     if (portalEl) {
         portalEl.style.opacity = '1';
         portalEl.style.pointerEvents = 'auto';
-        portalEl.style.display = 'block';
+        portalEl.style.display = ''; // ✅ ล้าง inline style ให้ CSS class ทำงาน
         portalEl.classList.add('active');
     }
     
@@ -2856,7 +2882,10 @@ function refreshDetailCompare(carId) {
             function HP(p) { if (!currentUser) return false; return currentUser.role === 'admin' || (currentUser.permissions || []).indexOf(p) !== -1; }
             function CAC(c) { if (!currentUser) return false; if (currentUser.role === 'admin') return true; return c.salesPerson === currentUser.salesPerson; }
             function CEC(c) { if (!currentUser) return false; if (currentUser.role === 'admin') return true; return HP('edit_own') && c.salesPerson === currentUser.salesPerson; }
-            function FCP(cl) { if (!currentUser || currentUser.role === 'admin') return cl || []; return (cl || []).filter(c => c.salesPerson === currentUser.salesPerson); }
+            function FCP(cl) { 
+    if (!currentUser || currentUser.role === 'admin' || currentUser.role === 'customer') return cl || []; 
+    return (cl || []).filter(c => c.salesPerson === currentUser.salesPerson); 
+}
 
             // ========== DATA MANAGEMENT ==========
             function LD() {
@@ -2888,7 +2917,7 @@ function loadFromLocalStorage() {
 }
 
             function SD() {
-    if (isUpdatingFromCloud) return; // ✅ เพิ่มบรรทัดนี้
+    if (isUpdatingFromCloud) return;
     
     try {
         localStorage.setItem('sc13_settings', JSON.stringify(SI));
@@ -2901,9 +2930,14 @@ function loadFromLocalStorage() {
         localStorage.setItem('sc13_notif', JSON.stringify(notifHistory));
         localStorage.setItem('sc_theme', theme);
         
-        // ✅ ซิงค์ข้อมูลไป Firebase อัตโนมัติ
-        FB.syncToCloud();
-    } catch (e) { console.warn('Storage quota exceeded'); }
+        // Sync to Firebase (fire and forget)
+        FB.syncToCloud().catch(e => console.warn('Sync failed:', e));
+        
+        hasUnsavedChanges = false;
+        console.log('💾 Data saved & synced to cloud');
+    } catch (e) { 
+        console.warn('Storage quota exceeded', e); 
+    }
 }
 
             function SCD() {
@@ -2922,7 +2956,12 @@ function loadFromLocalStorage() {
 
             // ========== THEME ==========
             function AT() { document.body.classList.toggle('light-theme', theme === 'light'); }
-            function toggleTheme() { theme = theme === 'dark' ? 'light' : 'dark'; AT(); SD(); }
+            function toggleTheme() { 
+    theme = theme === 'dark' ? 'light' : 'dark'; 
+    AT();
+    markUnsavedChanges();
+    SD(); 
+}
 
             // ========== TOAST ==========
             function showToast(message, type, title, duration) {
@@ -2953,7 +2992,7 @@ function loadFromLocalStorage() {
                 overlay.addEventListener('click', function(e) { if (e.target === overlay) overlay.remove(); });
             }
 
-            function closeAllModals() { document.querySelectorAll('.modal-overlay.open').forEach(m => m.remove()); }
+
 
             // ========== ROLE SELECTION ==========
             function selectRole(role) {
@@ -3094,7 +3133,10 @@ function handleLogout() {
     checkNotifications();
     if (currentTab === 'stock') renderGrid();
     
-    // ✅ เพิ่ม Real-time Listener
+    // ✅ เริ่ม Auto Save
+    startAutoSave();
+    
+    // ✅ Real-time Listener
     FB.listenToCloud((data) => {
         console.log('📡 ข้อมูลอัปเดตจากคลาวด์!');
         loadFromLocalStorage();
@@ -3104,7 +3146,6 @@ function handleLogout() {
         else if (currentTab === 'crm') renderCRM();
         else if (currentTab === 'dashboard') renderEnhancedDashboard();
         else if (currentTab === 'compare') renderCompareView();
-        showToast('🔄 ข้อมูลอัปเดตจากคลาวด์', 'info', 'Real-time Sync', 2000);
     });
 }
 
@@ -3130,7 +3171,15 @@ function handleLogout() {
                     '<div class="goal-bar"><div class="goal-bar-fill" style="width:' + pct + '%;background:' + (pct >= 100 ? 'linear-gradient(135deg,#5ab87a,#3d8b5f)' : pct >= 50 ? 'linear-gradient(135deg,#c9a84c,#e0a800)' : 'linear-gradient(135deg,#ee9955,#e05555)') + '">' + (pct >= 100 ? '🎉 เป้าหมายสำเร็จ! ' + salesGoal.reward : pct + '%') + '</div></div>';
             }
 
-            function setSalesGoal() { const g = prompt('ตั้งเป้าหมายยอดขายต่อเดือน (คัน):', salesGoal.monthly); if (g && parseInt(g) > 0) { salesGoal.monthly = parseInt(g); SD(); renderGoalBar(); } }
+            function setSalesGoal() { 
+    const g = prompt('ตั้งเป้าหมายยอดขายต่อเดือน (คัน):', salesGoal.monthly); 
+    if (g && parseInt(g) > 0) { 
+        salesGoal.monthly = parseInt(g);
+        markUnsavedChanges();
+        SD(); 
+        renderGoalBar(); 
+    } 
+}
             
             function renderGrid() {
                 const g = document.getElementById('carGrid'); if (!g) return;
@@ -3389,6 +3438,7 @@ function handleLogout() {
                 if (!n || !t) { showToast('กรุณากรอกข้อมูลให้ครบ', 'error'); return; }
                 if (!crmData[carId]) crmData[carId] = [];
                 crmData[carId].push({ id: GID(), name: n, tel: t, source: document.getElementById('leadSource')?.value || 'walk-in', status: document.getElementById('leadStatus')?.value || 'contact', budget: document.getElementById('leadBudget')?.value || '', nextAppointment: document.getElementById('leadNextAppointment')?.value || '', note: document.getElementById('leadNote')?.value || '', date: new Date().toISOString(), lastContact: new Date().toISOString(), history: [] });
+                markUnsavedChanges(); // ✅ เพิ่ม
                 SD(); closeAllModals(); renderGrid(); if (currentTab === 'crm') renderCRM();
                 showToast(__('lead_added'), 'success');
             }
@@ -3499,6 +3549,7 @@ function hideAllPages() {
                 if (c >= 1 && c <= 5) {
                     l.status = st[c - 1];
                     if (st[c - 1] === 'sold') { const car = cars.find(x => x.id === parseInt(carId)); if (car && car.status !== 'sold') { car.status = 'sold'; car.soldDate = new Date().toISOString().split('T')[0]; } }
+                    markUnsavedChanges(); // ✅ เพิ่ม
                     SD(); closeAllModals(); renderStats(); renderGoalBar(); if (currentTab === 'crm') renderCRM();
                 }
             }
@@ -3617,6 +3668,7 @@ function hideAllPages() {
         };
         
         cars.unshift(car);
+        markUnsavedChanges(); // ✅ เพิ่ม
         SD(); 
         tempCarImgs = []; 
         closeAllModals(); 
@@ -3924,7 +3976,7 @@ function hideAllPages() {
             c.soldDate = null; 
         }
         if (!c.images || c.images.length === 0) c.images = [PI];
-        
+        markUnsavedChanges(); // ✅ เพิ่ม
         SD(); 
         closeAllModals(); 
         renderStats(); 
@@ -3978,6 +4030,7 @@ function hideAllPages() {
                     compareIds = compareIds.filter(x => x !== id);
                     customerCmp = customerCmp.filter(x => x !== id);
                     customerFav = customerFav.filter(x => x !== id);
+                    markUnsavedChanges(); // ✅ เพิ่ม
                     SD(); SCD(); closeAllModals(); renderStats(); renderGrid();
                     showToast('ลบรถเรียบร้อย', 'warning');
                 });
@@ -4390,6 +4443,7 @@ function downloadCarTagImage(carId) {
                 SI.email = document.getElementById('setEmail')?.value || SI.email;
                 salesGoal.monthly = parseInt(document.getElementById('setGoal')?.value) || 10;
                 salesGoal.reward = document.getElementById('setReward')?.value || '';
+                markUnsavedChanges(); // ✅ เพิ่ม
                 SD(); closeAllModals(); renderGoalBar();
                 showToast(__('saved'), 'success');
             }
@@ -5882,8 +5936,7 @@ renderTagPreview,
         function GB() { APP.goBack(); }
         function HL() { APP.handleLogin(); }
     </script>
-    <!-- Quick Contact Float (แสดงเฉพาะใน Customer Portal) -->
-<div class="quick-contact-float" id="quickContactFloat" style="display:none">
+    <div class="quick-contact-float" id="quickContactFloat" style="display:none">
     <a class="quick-contact-btn line" href="https://line.me/ti/p/~ocshop518" target="_blank" title="LINE">
         💬
     </a>
@@ -5893,7 +5946,9 @@ renderTagPreview,
     <button class="quick-contact-btn chat" onclick="APP.openCompareModal()" title="เปรียบเทียบ">
         📊
     </button>
-     <!-- Chatbot -->
+</div> <!-- ✅ เพิ่ม closing tag ตรงนี้ -->
+
+<!-- Chatbot -->
 <div class="chatbot-float" id="chatbotFloat">
     <button class="chatbot-btn" onclick="APP.toggleChatbot()">🤖</button>
     <span class="chatbot-badge" id="chatbotBadge">1</span>
@@ -5913,7 +5968,7 @@ renderTagPreview,
         <button class="chatbot-quick-btn" onclick="APP.chatbotAsk('price')">💰 ขอดูราคารถ</button>
         <button class="chatbot-quick-btn" onclick="APP.chatbotAsk('finance')">🏦 ถามเรื่องไฟแนนซ์</button>
         <button class="chatbot-quick-btn" onclick="APP.chatbotAsk('contact')">📞 ติดต่อเรา</button>
-        <button class="chatbot-quick-btn" onclick="APP.chatbotAsk('promotion')">?? โปรโมชั่น</button>
+        <button class="chatbot-quick-btn" onclick="APP.chatbotAsk('promotion')">🎉 โปรโมชั่น</button>
     </div>
     <div class="chatbot-footer">
         <a href="https://line.me/ti/p/~ocshop518" target="_blank">💬 คุยกับแอดมินผ่าน LINE</a>
