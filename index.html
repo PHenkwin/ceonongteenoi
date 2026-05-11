@@ -3967,23 +3967,51 @@ function hideAllPages() {
     c.cost.repair = PP(document.getElementById('editCostRepair')?.value) || 0;
     c.cost.other = PP(document.getElementById('editCostOther')?.value) || 0;
 
-    // ✅ ฟังก์ชันบันทึกสุดท้าย
-    const finalizeSave = () => {
-        if (oldStatus !== 'sold' && newStatus === 'sold') { 
-            if (!c.soldDate) c.soldDate = new Date().toISOString().split('T')[0]; 
+    // ✅ ฟังก์ชันบันทึกสุดท้าย (Enhanced)
+const finalizeSave = () => {
+    // ✅ 1. อัปเดตวันที่ขาย
+    if (oldStatus !== 'sold' && newStatus === 'sold') { 
+        if (!c.soldDate) c.soldDate = new Date().toISOString().split('T')[0]; 
+        
+        // ✅ ถ้าขายแล้ว → อัปเดต CRM ให้ lead ที่เกี่ยวข้องเป็น 'sold'
+        if (crmData[c.id]) {
+            crmData[c.id].forEach(lead => {
+                if (lead.status === 'negotiate' || lead.status === 'meeting') {
+                    lead.status = 'sold';
+                }
+            });
         }
-        if (oldStatus === 'sold' && newStatus !== 'sold') { 
-            c.soldDate = null; 
-        }
-        if (!c.images || c.images.length === 0) c.images = [PI];
-        markUnsavedChanges(); // ✅ เพิ่ม
-        SD(); 
-        closeAllModals(); 
-        renderStats(); 
-        renderGrid(); 
-        renderGoalBar();
+    }
+    if (oldStatus === 'sold' && newStatus !== 'sold') { 
+        c.soldDate = null; 
+    }
+    
+    // ✅ 2. ตรวจสอบรูปภาพ
+    if (!c.images || c.images.length === 0) c.images = [PI];
+    
+    // ✅ 3. บันทึกข้อมูล
+    markUnsavedChanges();
+    SD(); 
+    closeAllModals(); 
+    
+    // ✅ 4. รีเฟรช UI ทั้งหมด
+    renderStats(); 
+    renderGrid(); 
+    renderGoalBar();
+    renderCustomerGrid(); // ✅ อัปเดตหน้า Customer Portal ด้วย
+    
+    // ✅ 5. เช็ค notification ใหม่ (สถานะเปลี่ยน)
+    checkNotifications();
+    
+    // ✅ 6. แสดงข้อความตามสถานะ
+    if (newStatus === 'sold') {
+        showToast('🎉 ขายรถเรียบร้อย! ' + c.brand + ' ' + c.name + '\n📅 วันที่ขาย: ' + c.soldDate, 'success', 'ขายแล้ว!', 5000);
+    } else if (newStatus === 'hold') {
+        showToast('⚠️ จองรถ: ' + c.brand + ' ' + c.name, 'warning', 'จอง', 4000);
+    } else {
         showToast('✅ ' + __('car_edited') + ': ' + c.brand + ' ' + c.name, 'success');
-    };
+    }
+};
 
     // ✅ จัดการรูปภาพ
     const editImgInput = document.getElementById('editCarImages');
