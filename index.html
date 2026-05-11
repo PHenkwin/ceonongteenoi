@@ -2394,16 +2394,24 @@ const FB = {
     },
     
         async loadFromCloud() {
-        const data = await this.loadData('stockCEO/data');
-        if (data) {
+    const data = await this.loadData('stockCEO/data');
+    if (data) {
+        // ✅ เช็คว่าข้อมูลใน Cloud ใหม่กว่าหรือไม่ (เทียบ timestamp)
+        const localTime = localStorage.getItem('sc13_lastSave') || '2000-01-01';
+        const cloudTime = data.timestamp || '2000-01-01';
+        
+        // ✅ โหลดเฉพาะเมื่อ cloud ใหม่กว่า local
+        if (new Date(cloudTime) > new Date(localTime)) {
             if (data.cars) localStorage.setItem('sc13_cars', JSON.stringify(data.cars));
             if (data.crmData) localStorage.setItem('sc13_crm', JSON.stringify(data.crmData));
             if (data.settings) localStorage.setItem('sc13_settings', JSON.stringify(data.settings));
             if (data.goal) localStorage.setItem('sc13_goal', JSON.stringify(data.goal));
+            localStorage.setItem('sc13_lastSave', cloudTime);
             return true;
         }
-        return false;
     }
+    return false;
+},
     
     // ✅ เพิ่มฟังก์ชันนี้
     listenToCloud(callback) {
