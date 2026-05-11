@@ -4050,19 +4050,39 @@ const finalizeSave = () => {
 }
 
             function deleteCar(id) {
-                const c = cars.find(x => x.id === id);
-                if (!c || !CEC(c)) { showToast(__('no_permission'), 'error'); return; }
-                confirmDialog('🗑️ ลบรถ', 'คุณแน่ใจหรือไม่ที่จะลบ <strong>' + EH(c.brand) + ' ' + EH(c.name) + '</strong>?<br><br>⚠️ ไม่สามารถย้อนกลับได้!', '🗑️', () => {
-                    cars = cars.filter(x => x.id !== id);
-                    delete crmData[id];
-                    compareIds = compareIds.filter(x => x !== id);
-                    customerCmp = customerCmp.filter(x => x !== id);
-                    customerFav = customerFav.filter(x => x !== id);
-                    markUnsavedChanges(); // ✅ เพิ่ม
-                    SD(); SCD(); closeAllModals(); renderStats(); renderGrid();
-                    showToast('ลบรถเรียบร้อย', 'warning');
-                });
-            }
+    const c = cars.find(x => x.id === id);
+    if (!c || !CEC(c)) { showToast(__('no_permission'), 'error'); return; }
+    confirmDialog('🗑️ ลบรถ', 'คุณแน่ใจหรือไม่ที่จะลบ <strong>' + EH(c.brand) + ' ' + EH(c.name) + '</strong>?<br><br>⚠️ ไม่สามารถย้อนกลับได้!', '🗑️', () => {
+        // ✅ 1. ลบรถ
+        cars = cars.filter(x => x.id !== id);
+        
+        // ✅ 2. ลบข้อมูล CRM
+        delete crmData[id];
+        
+        // ✅ 3. ลบจากรายการเปรียบเทียบ
+        compareIds = compareIds.filter(x => x !== id);
+        
+        // ✅ 4. ลบจากรายการโปรด + เปรียบเทียบของลูกค้า
+        customerCmp = customerCmp.filter(x => x !== id);
+        customerFav = customerFav.filter(x => x !== id);
+        
+        // ✅ 5. ลบการแจ้งเตือนที่เกี่ยวข้อง
+        notifHistory = notifHistory.filter(x => x.carId !== id);
+        
+        // ✅ 6. บันทึกทั้งหมด (SD ต้องอยู่หลังลบข้อมูล)
+        markUnsavedChanges();
+        SCD(); // ✅ บันทึก customer ก่อน
+        SD();  // ✅ แล้วค่อยบันทึกทั้งหมด
+        
+        // ✅ 7. ปิด modal + รีเฟรช
+        closeAllModals(); 
+        renderStats(); 
+        renderGrid();
+        renderCustomerGrid(); // ✅ อัปเดตหน้า Customer ด้วย
+        
+        showToast('ลบรถเรียบร้อย', 'warning');
+    });
+}
 
             // ========== QR CODE ==========
             function showQRCode(carId) {
