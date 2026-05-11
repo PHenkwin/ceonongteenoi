@@ -3920,7 +3920,7 @@ function hideAllPages() {
     const newNet = document.getElementById('editNet')?.value?.trim() || c.net;
     const newStatus = document.getElementById('editStatus')?.value || c.status;
 
-    // บันทึกประวัติราคา
+    // ✅ บันทึกประวัติราคา
     if (oldNet !== newNet) {
         if (!c.priceHistory) c.priceHistory = [];
         c.priceHistory.push({ 
@@ -3931,7 +3931,7 @@ function hideAllPages() {
         });
     }
 
-    // อัปเดตข้อมูลพื้นฐาน
+    // ✅ อัปเดตข้อมูลพื้นฐาน
     c.brand = document.getElementById('editBrand')?.value?.trim() || c.brand;
     c.name = document.getElementById('editName')?.value?.trim() || c.name;
     c.year = parseInt(document.getElementById('editYear')?.value) || c.year;
@@ -3943,12 +3943,12 @@ function hideAllPages() {
     c.status = newStatus;
     c.salesPerson = document.getElementById('editSalesPerson')?.value || c.salesPerson;
 
-    // อัปเดตแท็ก
+    // ✅ อัปเดตแท็ก
     const tagCheckboxes = document.querySelectorAll('#editTags input[type="checkbox"]');
     c.tags = [];
     tagCheckboxes.forEach(cb => { if (cb.checked) c.tags.push(cb.value); });
 
-    // อัปเดตรายละเอียด
+    // ✅ อัปเดตรายละเอียด
     c.transmission = document.getElementById('editTransmission')?.value || '';
     c.fuel = document.getElementById('editFuel')?.value || '';
     c.doors = parseInt(document.getElementById('editDoors')?.value) || 0;
@@ -3956,75 +3956,60 @@ function hideAllPages() {
     c.keys = document.getElementById('editKeys')?.value?.trim() || '';
     c.notes = document.getElementById('editNotes')?.value?.trim() || '';
 
-    // อัปเดต Features
+    // ✅ อัปเดต Features
     const featureCheckboxes = document.querySelectorAll('#editFeatures input[type="checkbox"]');
     c.features = [];
     featureCheckboxes.forEach(cb => { if (cb.checked) c.features.push(cb.value); });
 
-    // อัปเดตต้นทุน
+    // ✅ อัปเดตต้นทุน
     if (!c.cost) c.cost = { purchase: 0, repair: 0, other: 0 };
     c.cost.purchase = PP(document.getElementById('editCostPurchase')?.value) || 0;
     c.cost.repair = PP(document.getElementById('editCostRepair')?.value) || 0;
     c.cost.other = PP(document.getElementById('editCostOther')?.value) || 0;
 
-    // ✅ ฟังก์ชันบันทึกสุดท้าย (Enhanced)
-const finalizeSave = () => {
-    // ✅ 1. อัปเดตวันที่ขาย
-    if (oldStatus !== 'sold' && newStatus === 'sold') { 
-        if (!c.soldDate) c.soldDate = new Date().toISOString().split('T')[0]; 
-        
-        // ✅ ถ้าขายแล้ว → อัปเดต CRM ให้ lead ที่เกี่ยวข้องเป็น 'sold'
-        if (crmData[c.id]) {
-            crmData[c.id].forEach(lead => {
-                if (lead.status === 'negotiate' || lead.status === 'meeting') {
-                    lead.status = 'sold';
-                }
-            });
+    // ✅ ฟังก์ชันบันทึกสุดท้าย
+    const finalizeSave = () => {
+        // ✅ อัปเดตวันที่ขาย
+        if (oldStatus !== 'sold' && newStatus === 'sold') { 
+            if (!c.soldDate) c.soldDate = new Date().toISOString().split('T')[0]; 
         }
-    }
-    if (oldStatus === 'sold' && newStatus !== 'sold') { 
-        c.soldDate = null; 
-    }
-    
-    // ✅ 2. ตรวจสอบรูปภาพ
-    if (!c.images || c.images.length === 0) c.images = [PI];
-    
-    // ✅ 3. บันทึกข้อมูล
-    markUnsavedChanges();
-    SD(); 
-    closeAllModals(); 
-    
-    // ✅ 4. รีเฟรช UI ทั้งหมด
-    renderStats(); 
-    renderGrid(); 
-    renderGoalBar();
-    renderCustomerGrid(); // ✅ อัปเดตหน้า Customer Portal ด้วย
-    
-    // ✅ 5. เช็ค notification ใหม่ (สถานะเปลี่ยน)
-    checkNotifications();
-    
-    // ✅ 6. แสดงข้อความตามสถานะ
-    if (newStatus === 'sold') {
-        showToast('🎉 ขายรถเรียบร้อย! ' + c.brand + ' ' + c.name + '\n📅 วันที่ขาย: ' + c.soldDate, 'success', 'ขายแล้ว!', 5000);
-    } else if (newStatus === 'hold') {
-        showToast('⚠️ จองรถ: ' + c.brand + ' ' + c.name, 'warning', 'จอง', 4000);
-    } else {
+        if (oldStatus === 'sold' && newStatus !== 'sold') { 
+            c.soldDate = null; 
+        }
+        
+        // ✅ ตรวจสอบรูปภาพ
+        if (!c.images || c.images.length === 0) c.images = [PI];
+        
+        // ✅ บันทึกข้อมูล
+        markUnsavedChanges();
+        SD(); 
+        
+        // ✅ ปิด modal ทั้งหมด
+        document.querySelectorAll('.modal-overlay.open').forEach(m => m.remove());
+        document.body.classList.remove('modal-open');
+        
+        // ✅ รีเฟรช UI
+        renderStats(); 
+        renderGrid(); 
+        renderGoalBar();
+        
+        // ✅ แสดงข้อความ
         showToast('✅ ' + __('car_edited') + ': ' + c.brand + ' ' + c.name, 'success');
-    }
-};
+    };
 
     // ✅ จัดการรูปภาพ
     const editImgInput = document.getElementById('editCarImages');
     if (editImgInput && editImgInput.files && editImgInput.files.length > 0) {
+        // ✅ มีรูปใหม่ → อ่านแล้วบันทึก
         const maxFiles = Math.min(editImgInput.files.length, 10);
         const promises = [];
         
         for (let i = 0; i < maxFiles; i++) {
             promises.push(
-                new Promise((resolve, reject) => { 
+                new Promise((resolve) => { 
                     const reader = new FileReader(); 
                     reader.onload = (e) => resolve(e.target.result); 
-                    reader.onerror = () => reject(new Error('Failed to read file ' + i));
+                    reader.onerror = () => resolve(null);
                     reader.readAsDataURL(editImgInput.files[i]); 
                 })
             );
@@ -4032,19 +4017,21 @@ const finalizeSave = () => {
         
         Promise.all(promises)
             .then(newImages => {
+                const valid = newImages.filter(img => img !== null);
                 if (!c.images || (c.images.length === 1 && c.images[0] === PI)) c.images = [];
-                newImages.forEach(img => { 
+                valid.forEach(img => { 
                     if (c.images.length < 10) c.images.push(img); 
                 });
-                console.log('✅ อัปโหลดรูป ' + newImages.length + ' รูป');
+                console.log('✅ อัปโหลดรูป ' + valid.length + ' รูป');
                 finalizeSave();
             })
             .catch(err => {
                 console.error('❌ อัปโหลดรูปล้มเหลว:', err);
                 showToast('⚠️ อัปโหลดรูปไม่สำเร็จ แต่บันทึกข้อมูลอื่นๆ แล้ว', 'warning');
-                finalizeSave(); // ✅ บันทึกข้อมูลอื่นๆ แม้รูปจะไม่สำเร็จ
+                finalizeSave();
             });
     } else {
+        // ✅ ไม่มีรูปใหม่ → บันทึกทันที
         finalizeSave();
     }
 }
