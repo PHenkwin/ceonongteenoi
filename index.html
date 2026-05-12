@@ -5939,7 +5939,99 @@ function getContactAnswer() {
         '📍 ' + (SI.address || 'กรุงเทพ / ปทุมธานี') + '<br><br>' +
         '⏰ เปิดทุกวัน 08:00-17:00 น.';
 }
+// ✅ บีบอัดรูปภาพ
+function compressImage(file, maxWidth, quality) {
+    maxWidth = maxWidth || 800;
+    quality = quality || 0.6;
+    
+    return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                const canvas = document.createElement('canvas');
+                let w = img.width;
+                let h = img.height;
+                
+                if (w > maxWidth) {
+                    h = Math.round(h * (maxWidth / w));
+                    w = maxWidth;
+                }
+                
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, w, h);
+                resolve(canvas.toDataURL('image/jpeg', quality));
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+    });
+}
 
+// ✅ Export CSV
+function exportCSV() {
+    let csv = '\uFEFF' + 'ID,แบรนด์,ชื่อรถ,ปี,สี,ทะเบียน,เลขไมล์,ราคา,สถานะ,วันที่เพิ่ม,อายุสต็อก(วัน),ต้นทุน,กำไร\n';
+    
+    cars.forEach(c => {
+        const cost = GC(c).total;
+        const profit = PP(c.net) - cost;
+        csv += [
+            c.id,
+            '"' + (c.brand || '') + '"',
+            '"' + (c.name || '') + '"',
+            c.year || '',
+            '"' + (c.color || '') + '"',
+            '"' + (c.plate || '') + '"',
+            '"' + (c.mileage || '') + '"',
+            PP(c.net),
+            c.status || '',
+            c.dateAdded || '',
+            GA(c),
+            cost,
+            profit
+        ].join(',') + '\n';
+    });
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = 'StockCEO_Export_' + new Date().toISOString().split('T')[0] + '.csv';
+    link.click();
+    showToast('📊 ส่งออก CSV สำเร็จ! เปิดใน Excel ได้เลย', 'success');
+}
+
+// ✅ แผนภูมิเทียบราคาตลาด
+function openMarketPriceComparison() {
+    const showCars = cars.filter(c => c.status === 'show' && PP(c.net) > 0);
+    if (showCars.length === 0) { showToast('ไม่มีรถในสต็อก', 'warning'); return; }
+    
+    let html = '<div class="modal-overlay open" onclick="if(event.target===this)this.remove()"><div class="modal modal-xl"><div class="modal-header"><div class="modal-title">📊 เทียบราคาตลาด</div><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">×</button></div>';
+    html += '<div style="max-height:60vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--bg-input)"><th>รถ</th><th>ราคาเรา</th><th>ราคาตลาด</th><th>ส่วนต่าง</th><th>%</th></tr></thead><tbody>';
+    
+    showCars.forEach(c => {
+        const ourPrice = PP(c.net);
+        const marketPrice = Math.round(ourPrice * 1.1);
+        const diff = marketPrice - ourPrice;
+        const pct = ((diff / marketPrice) * 100).toFixed(1);
+        const color = diff > 50000 ? '#5ab87a' : diff > 0 ? '#c9a84c' : '#e05555';
+        
+        html += '<tr style="border-bottom:1px solid var(--border)">';
+        html += '<td style="padding:8px"><strong>' + EH(c.brand) + ' ' + EH(c.name) + '</strong><br><small>' + c.year + ' | ' + EH(c.mileage) + ' กม.</small></td>';
+        html += '<td style="padding:8px;color:var(--gold)">' + FM(ourPrice) + '</td>';
+        html += '<td style="padding:8px;color:#888">' + FM(marketPrice) + '</td>';
+        html += '<td style="padding:8px;color:' + color + '"><strong>💰 ประหยัด ' + FM(diff) + '</strong></td>';
+        html += '<td style="padding:8px;color:' + color + '">' + pct + '%</td>';
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    html += '<div style="margin-top:15px;text-align:center;color:var(--text-secondary);font-size:10px">* ราคาตลาดคำนวณจากราคาของเรา +10%</div>';
+    html += '</div></div>';
+    
+    document.getElementById('modalContainer').insertAdjacentHTML('beforeend', html);
+}
 function getPromotionAnswer() {
     const hot = cars.filter(c => c.status === 'show' && (c.tags || []).includes('hot')).length;
     const newCars = cars.filter(c => c.status === 'show' && c.year >= new Date().getFullYear() - 1).length;
@@ -5992,97 +6084,7 @@ setTimeout(() => {
         badge.textContent = '👋';
     }
 }, 3000);
-// ✅ Export CSV
-function exportCSV() {
-    let csv = '\uFEFF' + 'ID,แบรนด์,ชื่อรถ,ปี,สี,ทะเบียน,เลขไมล์,ราคา,สถานะ,วันที่เพิ่ม,อายุสต็อก(วัน),ต้นทุน,กำไร\n';
-    
-    cars.forEach(c => {
-        const cost = GC(c).total;
-        const profit = PP(c.net) - cost;
-        csv += [
-            c.id,
-            '"' + (c.brand || '') + '"',
-            '"' + (c.name || '') + '"',
-            c.year || '',
-            '"' + (c.color || '') + '"',
-            '"' + (c.plate || '') + '"',
-            '"' + (c.mileage || '') + '"',
-            PP(c.net),
-            c.status || '',
-            c.dateAdded || '',
-            GA(c),
-            cost,
-            profit
-        ].join(',') + '\n';
-    });
-    
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = 'StockCEO_Export_' + new Date().toISOString().split('T')[0] + '.csv';
-    link.click();
-    showToast('📊 ส่งออก CSV สำเร็จ! เปิดใน Excel ได้เลย', 'success');
-}
-// ✅ แผนภูมิเทียบราคาตลาด
-function openMarketPriceComparison() {
-    const showCars = cars.filter(c => c.status === 'show' && PP(c.net) > 0);
-    if (showCars.length === 0) { showToast('ไม่มีรถในสต็อก', 'warning'); return; }
-    
-    let html = '<div class="modal-overlay open" onclick="if(event.target===this)this.remove()"><div class="modal modal-xl"><div class="modal-header"><div class="modal-title">📊 เทียบราคาตลาด</div><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">×</button></div>';
-    html += '<div style="max-height:60vh;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:var(--bg-input)"><th>รถ</th><th>ราคาเรา</th><th>ราคาตลาด</th><th>ส่วนต่าง</th><th>%</th></tr></thead><tbody>';
-    
-    showCars.forEach(c => {
-        const ourPrice = PP(c.net);
-        const marketPrice = Math.round(ourPrice * 1.1); // ตลาดสูงกว่าเรา 10%
-        const diff = marketPrice - ourPrice;
-        const pct = ((diff / marketPrice) * 100).toFixed(1);
-        const color = diff > 50000 ? '#5ab87a' : diff > 0 ? '#c9a84c' : '#e05555';
-        
-        html += '<tr style="border-bottom:1px solid var(--border)">';
-        html += '<td style="padding:8px"><strong>' + EH(c.brand) + ' ' + EH(c.name) + '</strong><br><small>' + c.year + ' | ' + EH(c.mileage) + ' กม.</small></td>';
-        html += '<td style="padding:8px;color:var(--gold)">' + FM(ourPrice) + '</td>';
-        html += '<td style="padding:8px;color:#888">' + FM(marketPrice) + '</td>';
-        html += '<td style="padding:8px;color:' + color + '"><strong>💰 ประหยัด ' + FM(diff) + '</strong></td>';
-        html += '<td style="padding:8px;color:' + color + '">' + pct + '%</td>';
-        html += '</tr>';
-    });
-    
-    html += '</tbody></table></div>';
-    html += '<div style="margin-top:15px;text-align:center;color:var(--text-secondary);font-size:10px">* ราคาตลาดคำนวณจากราคาของเรา +10%</div>';
-    html += '</div></div>';
-    
-    document.getElementById('modalContainer').insertAdjacentHTML('beforeend', html);
-}
-// ✅ บีบอัดรูปภาพ
-function compressImage(file, maxWidth, quality) {
-    maxWidth = maxWidth || 800;
-    quality = quality || 0.6;
-    
-    return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                const canvas = document.createElement('canvas');
-                let w = img.width;
-                let h = img.height;
-                
-                if (w > maxWidth) {
-                    h = Math.round(h * (maxWidth / w));
-                    w = maxWidth;
-                }
-                
-                canvas.width = w;
-                canvas.height = h;
-                const ctx = canvas.getContext('2d');
-                ctx.drawImage(img, 0, 0, w, h);
-                resolve(canvas.toDataURL('image/jpeg', quality));
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(file);
-    });
-}
+
             // ========== PUBLIC API ==========
             return {
     selectRole, goBack, goToNext, handleLogin, togglePassword, toggleTheme,
@@ -6137,6 +6139,8 @@ openUserManagement,
 saveUsers,
 addNewUser,
 deleteUser,
+exportCSV,                    // ✅ เพิ่มชื่อ
+ openMarketPriceComparison,    // ✅ เพิ่มชื่อ
     toggleChatbot,      // ✅ เพิ่ม
     chatbotAsk,         // ✅ เพิ่ม
     chatbotMinimize,    // ✅ เพิ่ม
