@@ -3118,7 +3118,70 @@ function handleLogout() {
         goBack();
     });
 }
-      
+        // ✅ จัดการผู้ใช้
+function openUserManagement() {
+    let html = '<div class="modal-overlay open" onclick="if(event.target===this)this.remove()"><div class="modal modal-lg"><div class="modal-header"><div class="modal-title">👥 จัดการผู้ใช้</div><button class="modal-close" onclick="this.closest(\'.modal-overlay\').remove()">×</button></div>';
+    html += '<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse"><thead><tr style="background:var(--bg-input)"><th style="padding:10px;text-align:left">ชื่อผู้ใช้</th><th style="padding:10px;text-align:left">ชื่อ</th><th style="padding:10px;text-align:left">รหัสผ่าน</th><th style="padding:10px;text-align:left">บทบาท</th><th style="padding:10px;text-align:left">จัดการ</th></tr></thead><tbody>';
+    
+    Object.keys(USERS).forEach(id => {
+        const u = USERS[id];
+        html += '<tr>';
+        html += '<td style="padding:8px"><strong>' + EH(u.id) + '</strong></td>';
+        html += '<td style="padding:8px"><input class="form-input" id="uname_' + id + '" value="' + EH(u.name) + '" style="width:140px"></td>';
+        html += '<td style="padding:8px"><input type="text" class="form-input" id="upass_' + id + '" value="' + EH(u.password) + '" style="width:100px"></td>';
+        html += '<td style="padding:8px"><select class="form-select" id="urole_' + id + '" style="width:100px"><option value="admin"' + (u.role==='admin'?' selected':'') + '>👑 Admin</option><option value="sales"' + (u.role==='sales'?' selected':'') + '>💼 Sales</option></select></td>';
+        html += '<td style="padding:8px"><button class="btn btn-danger btn-sm" onclick="APP.deleteUser(\'' + id + '\')">🗑️ ลบ</button></td>';
+        html += '</tr>';
+    });
+    
+    html += '</tbody></table></div>';
+    html += '<div style="margin-top:15px;display:flex;gap:10px">';
+    html += '<button class="btn btn-primary" onclick="APP.saveUsers()">💾 บันทึกการเปลี่ยนแปลง</button>';
+    html += '<button class="btn btn-outline btn-sm" onclick="APP.addNewUser()">➕ เพิ่มผู้ใช้ใหม่</button>';
+    html += '</div></div></div>';
+    
+    document.getElementById('modalContainer').insertAdjacentHTML('beforeend', html);
+}
+
+function saveUsers() {
+    Object.keys(USERS).forEach(id => {
+        const nameEl = document.getElementById('uname_' + id);
+        const passEl = document.getElementById('upass_' + id);
+        const roleEl = document.getElementById('urole_' + id);
+        if (nameEl) USERS[id].name = nameEl.value;
+        if (passEl) USERS[id].password = passEl.value;
+        if (roleEl) {
+            USERS[id].role = roleEl.value;
+            USERS[id].permissions = roleEl.value === 'admin' ? ['all'] : ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'];
+        }
+    });
+    localStorage.setItem('sc13_users', JSON.stringify(USERS));
+    closeAllModals();
+    showToast('✅ บันทึกข้อมูลผู้ใช้เรียบร้อย', 'success');
+}
+
+function addNewUser() {
+    const id = prompt('👤 ชื่อผู้ใช้ (username):');
+    if (!id) return;
+    if (USERS[id]) { showToast('❌ ชื่อผู้ใช้นี้มีอยู่แล้ว', 'error'); return; }
+    const name = prompt('👤 ชื่อที่แสดง:') || id;
+    USERS[id] = { id, password: '1234', name, role: 'sales', avatar: '💼', permissions: ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'], salesPerson: id, commissionRate: 5 };
+    localStorage.setItem('sc13_users', JSON.stringify(USERS));
+    closeAllModals();
+    openUserManagement();
+    showToast('✅ เพิ่มผู้ใช้ ' + name + ' เรียบร้อย!', 'success');
+}
+
+function deleteUser(userId) {
+    if (userId === 'admin') { showToast('❌ ไม่สามารถลบ Admin หลักได้', 'error'); return; }
+    confirmDialog('🗑️ ลบผู้ใช้', 'คุณแน่ใจหรือไม่ที่จะลบผู้ใช้ <strong>' + EH(USERS[userId]?.name || userId) + '</strong>?', '🗑️', () => {
+        delete USERS[userId];
+        localStorage.setItem('sc13_users', JSON.stringify(USERS));
+        closeAllModals();
+        openUserManagement();
+        showToast('✅ ลบผู้ใช้เรียบร้อย', 'warning');
+    });
+}
             function togglePassword() {
                 const input = document.getElementById('loginPass');
                 if (input) input.type = input.type === 'password' ? 'text' : 'password';
@@ -5204,9 +5267,9 @@ function deleteAppointmentFromEdit(carId, leadId) {
         }
     }
     if (tab === 'admin' && currentUser?.role === 'admin') {
-        const ct = document.getElementById('adminContent');
-        if (ct) ct.innerHTML = '<h2 style="color:var(--gold)">👑 จัดการผู้ดูแลระบบ</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="APP.backupData()">💾 สำรองข้อมูล</button><button class="btn btn-outline btn-sm" onclick="APP.exportExcel()">📤 Export Excel</button><button class="btn btn-outline btn-sm" onclick="APP.openSettingsModal()">⚙️ ตั้งค่า</button></div>';
-    }
+    const ct = document.getElementById('adminContent');
+    if (ct) ct.innerHTML = '<h2 style="color:var(--gold)">👑 จัดการผู้ดูแลระบบ</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn btn-primary btn-sm" onclick="APP.backupData()">💾 สำรองข้อมูล</button><button class="btn btn-outline btn-sm" onclick="APP.exportExcel()">📤 Export Excel</button><button class="btn btn-outline btn-sm" onclick="APP.openSettingsModal()">⚙️ ตั้งค่า</button><button class="btn btn-outline btn-sm" onclick="APP.openUserManagement()" style="background:var(--purple);color:#fff">👥 จัดการผู้ใช้</button></div>';
+}
     if (tab === 'alerts') {
         const ac = document.getElementById('alertsContent');
         if (ac) ac.innerHTML = '<h2 style="color:var(--gold)">🔔 การแจ้งเตือน</h2>' + (notifHistory.length ? notifHistory.map(a => '<div style="padding:12px;margin-bottom:6px;background:var(--bg-card);border:1px solid ' + (a.type === 'danger' ? 'var(--red)' : 'var(--orange)') + ';border-radius:8px;cursor:pointer" onclick="APP.openDetail(' + a.carId + ')"><strong>' + a.icon + ' ' + a.msg + '</strong></div>').join('') : '<div style="text-align:center;padding:50px">✅ ไม่มีการแจ้งเตือน</div>');
@@ -5970,7 +6033,10 @@ printCarTag,
 downloadCarTag,
 downloadCarTagImage,
 renderTagPreview,
-
+openUserManagement,
+saveUsers,
+addNewUser,
+deleteUser,
     toggleChatbot,      // ✅ เพิ่ม
     chatbotAsk,         // ✅ เพิ่ม
     chatbotMinimize,    // ✅ เพิ่ม
