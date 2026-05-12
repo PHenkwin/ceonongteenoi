@@ -2920,6 +2920,13 @@ function loadFromLocalStorage() {
     try { compareIds = JSON.parse(localStorage.getItem('sc13_cmp') || '[]'); } catch (e) { compareIds = []; }
     try { notifHistory = JSON.parse(localStorage.getItem('sc13_notif') || '[]'); } catch (e) { notifHistory = []; }
     theme = localStorage.getItem('sc_theme') || 'dark';
+    
+    // ✅ โหลดข้อมูลผู้ใช้ที่แก้ไขไว้
+    try { 
+        const savedUsers = JSON.parse(localStorage.getItem('sc13_users') || 'null');
+        if (savedUsers) Object.assign(USERS, savedUsers);
+    } catch (e) {}
+    
     AT();
     try { customerFav = JSON.parse(localStorage.getItem('sc13_fav') || '[]'); } catch (e) { customerFav = []; }
     try { customerCmp = JSON.parse(localStorage.getItem('sc13_ccmp') || '[]').filter(id => cars.find(x => x.id === id && x.status === 'show')); } catch (e) { customerCmp = []; }
@@ -3155,7 +3162,10 @@ function saveUsers() {
             USERS[id].permissions = roleEl.value === 'admin' ? ['all'] : ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'];
         }
     });
+    // ✅ บันทึกผ่านระบบหลัก
     localStorage.setItem('sc13_users', JSON.stringify(USERS));
+    markUnsavedChanges();
+    SD();
     closeAllModals();
     showToast('✅ บันทึกข้อมูลผู้ใช้เรียบร้อย', 'success');
 }
@@ -3165,8 +3175,14 @@ function addNewUser() {
     if (!id) return;
     if (USERS[id]) { showToast('❌ ชื่อผู้ใช้นี้มีอยู่แล้ว', 'error'); return; }
     const name = prompt('👤 ชื่อที่แสดง:') || id;
-    USERS[id] = { id, password: '1234', name, role: 'sales', avatar: '💼', permissions: ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'], salesPerson: id, commissionRate: 5 };
+    USERS[id] = { 
+        id, password: '1234', name, role: 'sales', avatar: '💼', 
+        permissions: ['view_own', 'add_car', 'edit_own', 'add_lead', 'request_price'], 
+        salesPerson: id, commissionRate: 5 
+    };
     localStorage.setItem('sc13_users', JSON.stringify(USERS));
+    markUnsavedChanges();
+    SD();
     closeAllModals();
     openUserManagement();
     showToast('✅ เพิ่มผู้ใช้ ' + name + ' เรียบร้อย!', 'success');
@@ -3177,6 +3193,8 @@ function deleteUser(userId) {
     confirmDialog('🗑️ ลบผู้ใช้', 'คุณแน่ใจหรือไม่ที่จะลบผู้ใช้ <strong>' + EH(USERS[userId]?.name || userId) + '</strong>?', '🗑️', () => {
         delete USERS[userId];
         localStorage.setItem('sc13_users', JSON.stringify(USERS));
+        markUnsavedChanges();
+        SD();
         closeAllModals();
         openUserManagement();
         showToast('✅ ลบผู้ใช้เรียบร้อย', 'warning');
